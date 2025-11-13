@@ -9,7 +9,8 @@ document.addEventListener('DOMContentLoaded', () => {
     flow: null,
     ficType: null,
     awaiting: null,
-    buffer: {}
+    buffer: {},
+    locked: false // 🔒 nuevo: indica si el bot está procesando
   };
 
   // Configurar axios
@@ -37,10 +38,25 @@ document.addEventListener('DOMContentLoaded', () => {
     messages.scrollTop = messages.scrollHeight;
   }
 
-  function botReply(text, delay=400){ setTimeout(()=> append(text,'bot'), delay); }
+  function botReply(text, delay=400){
+    state.locked = true; // 🔒 bloquea mientras el bot responde
+    sendBtn.disabled = true;
+    chatInput.disabled = true;
+
+    setTimeout(() => {
+      append(text, 'bot');
+      // 🔓 desbloquear después de responder
+      state.locked = false;
+      sendBtn.disabled = false;
+      chatInput.disabled = false;
+      chatInput.focus();
+    }, delay);
+  }
 
   // === Opciones rápidas ===
-  quickOpts.addEventListener('click', (e)=>{
+  quickOpts.addEventListener('click', (e) => {
+    if (state.locked) return; // 🚫 evitar clics durante espera
+
     const btn = e.target.closest('.opt-btn');
     if(!btn) return;
     const val = btn.getAttribute('data-opt');
@@ -61,7 +77,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // === Entrada del usuario ===
-  sendBtn.addEventListener('click', ()=> {
+  sendBtn.addEventListener('click', () => {
+    if (state.locked) return; // 🚫 no permitir envío si está bloqueado
+
     const text = chatInput.value.trim();
     if(!text) return;
     append(text,'user');
@@ -69,8 +87,8 @@ document.addEventListener('DOMContentLoaded', () => {
     handleUserText(text);
   });
 
-  chatInput.addEventListener('keydown', (e)=>{
-    if(e.key === 'Enter'){
+  chatInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
       e.preventDefault();
       sendBtn.click();
     }
@@ -82,14 +100,14 @@ document.addEventListener('DOMContentLoaded', () => {
     state.ficType = null;
     state.awaiting = 'chooseType';
     state.buffer = {};
-botReply('¿Qué tipo de certificado FIC desea generar?\nResponda: "TICKET", "NIT" o "VIGENCIA".');  }
+    botReply('¿Qué tipo de certificado FIC desea generar?\nResponda: "TICKET", "NIT" o "VIGENCIA".');
+  }
 
   // === Procesa los mensajes del usuario ===
   function handleUserText(text){
     const t = text.toLowerCase();
 
     if(state.flow === 'generar'){
-      // tipo de certificado
       if(state.awaiting === 'chooseType'){
         if(t.includes('ticket')) {
           state.ficType = 'ticket';
@@ -109,7 +127,6 @@ botReply('¿Qué tipo de certificado FIC desea generar?\nResponda: "TICKET", "NI
         return;
       }
 
-      // datos según tipo
       if(state.awaiting === 'nit'){
         state.buffer.nit = text.trim();
         if(state.ficType === 'ticket'){
@@ -166,6 +183,10 @@ botReply('¿Qué tipo de certificado FIC desea generar?\nResponda: "TICKET", "NI
   // === Generación del certificado ===
   async function generateCertificate(type, payload){
     botReply('Generando certificado, por favor espere...');
+    state.locked = true;
+    sendBtn.disabled = true;
+    chatInput.disabled = true;
+
     try {
       const resp = await axios.post('/api/certificates/generate', {...payload, type});
       const data = resp.data;
@@ -184,12 +205,21 @@ botReply('¿Qué tipo de certificado FIC desea generar?\nResponda: "TICKET", "NI
       botReply('❌ Error de conexión con el servidor.');
       console.error(err);
     } finally {
+      // 🔓 desbloquear al finalizar
+      state.locked = false;
+      sendBtn.disabled = false;
+      chatInput.disabled = false;
+      chatInput.focus();
       state.flow = null; state.ficType = null; state.awaiting = null; state.buffer = {};
     }
   }
 
-  // === Consulta genérica (por ahora no se usa mucho) ===
+  // === Consulta genérica ===
   async function queryServerAndShow(type, payload){
+    state.locked = true;
+    sendBtn.disabled = true;
+    chatInput.disabled = true;
+
     try {
       const resp = await axios.post('/api/certificates/query', {...payload, type});
       const data = resp.data;
@@ -205,6 +235,11 @@ botReply('¿Qué tipo de certificado FIC desea generar?\nResponda: "TICKET", "NI
     } catch (err){
       botReply('Error de conexión con el servidor.');
       console.error(err);
+    } finally {
+      state.locked = false;
+      sendBtn.disabled = false;
+      chatInput.disabled = false;
+      chatInput.focus();
     }
   }
 });
