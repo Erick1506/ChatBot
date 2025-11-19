@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ficType: null,
     awaiting: null,
     buffer: {},
-    locked: false // 🔒 nuevo: indica si el bot está procesando
+    locked: false 
   };
 
   // Configurar axios
@@ -39,13 +39,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function botReply(text, delay=400){
-    state.locked = true; // 🔒 bloquea mientras el bot responde
+    state.locked = true; // bloquea mientras el bot responde
     sendBtn.disabled = true;
     chatInput.disabled = true;
 
     setTimeout(() => {
       append(text, 'bot');
-      // 🔓 desbloquear después de responder
+      // desbloquear después de responder
       state.locked = false;
       sendBtn.disabled = false;
       chatInput.disabled = false;
@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // === Opciones rápidas ===
   quickOpts.addEventListener('click', (e) => {
-    if (state.locked) return; // 🚫 evitar clics durante espera
+    if (state.locked) return; // evitar clics durante espera
 
     const btn = e.target.closest('.opt-btn');
     if(!btn) return;
@@ -78,7 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // === Entrada del usuario ===
   sendBtn.addEventListener('click', () => {
-    if (state.locked) return; // 🚫 no permitir envío si está bloqueado
+    if (state.locked) return; // no permitir envío si está bloqueado
 
     const text = chatInput.value.trim();
     if(!text) return;
@@ -133,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
           state.awaiting = 'ticket';
           botReply('Ahora ingresa el número de ticket.');
         } else if(state.ficType === 'nit'){
-          generateCertificate('nit',{nit: state.buffer.nit});
+          generateCertificate('nit_general',{nit: state.buffer.nit});
         } else if(state.ficType === 'vigencia'){
           state.awaiting = 'year';
           botReply('Ingresa el año de la vigencia (ejemplo: 2025). Solo se permiten 15 años atrás desde el actual.');
@@ -143,7 +143,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if(state.awaiting === 'ticket'){
         state.buffer.ticket_number = text.trim();
-        generateCertificate('ticket',{nit: state.buffer.nit, ticket_number: state.buffer.ticket_number});
+        generateCertificate('nit_ticket',{
+          nit: state.buffer.nit, 
+          ticket: state.buffer.ticket_number
+        });
         return;
       }
 
@@ -159,7 +162,10 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
         }
         state.buffer.year = year;
-        generateCertificate('vigencia',{nit: state.buffer.nit, year: state.buffer.year});
+        generateCertificate('nit_vigencia',{
+          nit: state.buffer.nit, 
+          vigencia: state.buffer.year
+        });
         return;
       }
     }
@@ -180,37 +186,116 @@ document.addEventListener('DOMContentLoaded', () => {
     botReply('No entendí 🤔. Prueba con: "Generar Certificado" o "Consultar Certificado".');
   }
 
-  // === Generación del certificado ===
+  // === Generación del certificado PDF ===
   async function generateCertificate(type, payload){
-    botReply('Generando certificado, por favor espere...');
+    botReply('📄 Generando certificado PDF, por favor espere...');
     state.locked = true;
     sendBtn.disabled = true;
     chatInput.disabled = true;
 
     try {
-      const resp = await axios.post('/api/certificates/generate', {...payload, type});
-      const data = resp.data;
-      if(data.success){
-        botReply('✅ Certificado generado correctamente.');
-        if(data.result){
-          const pre = document.createElement('pre');
-          pre.style.whiteSpace = 'pre-wrap';
-          pre.textContent = JSON.stringify(data.result, null, 2);
-          append(pre, 'bot');
-        }
-      } else {
-        botReply('❌ Error en la solicitud: ' + (data.message || 'No se pudo generar el certificado.'));
+      // Configurar los parámetros para la API
+      const requestData = {
+        tipo: type,
+        nit: payload.nit
+      };
+
+      // Agregar parámetros adicionales según el tipo
+      if (type === 'nit_ticket') {
+        requestData.ticket = payload.ticket;
+      } else if (type === 'nit_vigencia') {
+        requestData.vigencia = payload.vigencia;
       }
-    } catch (err){
-      botReply('❌ Error de conexión con el servidor.');
-      console.error(err);
+
+      // Hacer la petición para generar el PDF
+      const response = await axios({
+        method: 'post',
+        url: '/api/chatbot/generar-certificado',
+        data: requestData,
+        responseType: 'blob' // Importante para recibir archivos binarios
+      });
+
+      // Crear un blob con el PDF recibido
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      
+      // Crear URL para descargar el PDF
+      const url = window.URL.createObjectURL(blob);
+      
+      // Crear enlace de descarga
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Obtener el nombre del archivo del header o generarlo
+      const contentDisposition = response.headers['content-disposition'];
+      let fileName = 'certificado_fic.pdf';
+      
+      if (contentDisposition) {
+        const fileNameMatch = contentDisposition.match(/filename="(.+)"/);
+        if (fileNameMatch.length === 2) {
+          fileName = fileNameMatch[1];
+        }
+      }
+      
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      
+      // Limpiar
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(link);
+
+      // Mostrar mensaje de éxito
+      botReply('✅ Certificado PDF generado y descargado exitosamente!');
+      
+      // Mostrar botón para ver el PDF
+      const viewButton = document.createElement('button');
+      viewButton.textContent = '📋 Ver Certificado Generado';
+      viewButton.style.cssText = `
+        background: #28a745;
+        color: white;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 5px;
+        cursor: pointer;
+        margin: 5px 0;
+      `;
+      viewButton.onclick = () => {
+        const pdfWindow = window.open(url);
+        if (!pdfWindow) {
+          botReply('⚠️ Por favor permite ventanas emergentes para ver el PDF directamente.');
+        }
+      };
+      
+      append(viewButton, 'bot');
+
+    } catch (error) {
+      console.error('Error generando certificado:', error);
+      
+      // Manejar diferentes tipos de errores
+      if (error.response) {
+        // Error del servidor
+        if (error.response.status === 404) {
+          botReply('❌ No se encontraron certificados con los criterios especificados.');
+        } else if (error.response.status === 400) {
+          botReply('❌ Datos inválidos. Por favor verifica la información proporcionada.');
+        } else {
+          botReply('❌ Error del servidor: ' + (error.response.data.error || 'Intenta nuevamente.'));
+        }
+      } else if (error.request) {
+        botReply('❌ Error de conexión. Verifica tu internet e intenta nuevamente.');
+      } else {
+        botReply('❌ Error inesperado: ' + error.message);
+      }
     } finally {
-      // 🔓 desbloquear al finalizar
+      // Restaurar estado
       state.locked = false;
       sendBtn.disabled = false;
       chatInput.disabled = false;
       chatInput.focus();
-      state.flow = null; state.ficType = null; state.awaiting = null; state.buffer = {};
+      state.flow = null; 
+      state.ficType = null; 
+      state.awaiting = null; 
+      state.buffer = {};
     }
   }
 
@@ -241,5 +326,11 @@ document.addEventListener('DOMContentLoaded', () => {
       chatInput.disabled = false;
       chatInput.focus();
     }
+  }
+
+  // Función auxiliar para mostrar PDF en nueva pestaña
+  function showPdfInNewTab(blob) {
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
   }
 });
