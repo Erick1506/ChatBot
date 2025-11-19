@@ -39,5 +39,8 @@ RUN php artisan key:generate --ansi || true \
 # Ajustes finales
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache || true
 
+# Exponer puerto
 EXPOSE 9000
-CMD ["php-fpm"]
+
+# Start command: php artisan serve binding to render $PORT
+CMD ["sh", "-c", "php artisan serve --host=0.0.0.0 --port=${PORT:-8080}"]
