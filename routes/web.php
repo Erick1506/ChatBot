@@ -32,11 +32,12 @@ Route::get('/test-db', function () {
 Route::post('/generar-certificado', [CertificadoFICController::class, 'generarCertificado']);
 
 
-Route::get('/debug-whatsapp', function() {
-    return [
-        'verify_token' => config('services.whatsapp.verify_token'),
-        'phone_number_id' => config('services.whatsapp.phone_number_id'),
-        'access_token_length' => strlen(config('services.whatsapp.access_token')),
+Route::get('/whatsapp/debug', function() {
+    return response()->json([
+        'token_exists' => !empty(config('services.whatsapp.access_token')),
+        'token_length' => strlen(config('services.whatsapp.access_token')),
+        'phone_id_exists' => !empty(config('services.whatsapp.phone_number_id')),
+        'verify_token_exists' => !empty(config('services.whatsapp.verify_token')),
         'app_url' => config('app.url')
-    ];
+    ]);
 });

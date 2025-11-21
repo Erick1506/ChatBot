@@ -1,5 +1,4 @@
 <?php
-// app/Models/CertificadoFIC.php
 
 namespace App\Models;
 
@@ -59,5 +58,11 @@ class CertificadoFIC extends Model
     public function scopePorAnioFecha($query, $year)
     {
         return $query->whereYear('fecha', $year);
+    }
+
+    // Validar usuario
+    public function empresa()
+    {
+        return $this->belongsTo(empresa::class, 'constructor_nit', 'nit');
     }
 }

@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use App\Models\CertificadoFIC;
+use App\Models\Empresa;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class WhatsAppController extends Controller
@@ -60,7 +61,7 @@ class WhatsAppController extends Controller
         }
 
         \Log::info('=== WEBHOOK FINALIZADO ===');
-        return response('OK', 200);
+        return response('Mensaje enviado', 200);
     }
 
     private function processMessage($userPhone, $messageText)
@@ -68,44 +69,234 @@ class WhatsAppController extends Controller
         \Log::info("=== PROCESS MESSAGE INICIADO ===");
         \Log::info("Procesando mensaje - Usuario: {$userPhone}, Texto: {$messageText}");
         
-        $messageText = strtolower(trim($messageText));
-        
+        $raw = trim($messageText);
+        $messageLower = strtolower($raw);
+
         // Obtener o inicializar el estado del usuario
         $userState = $this->getUserState($userPhone);
         \Log::info("Estado actual del usuario:", $userState);
 
-        // Lógica del chatbot
-        if ($messageText === 'hola' || $messageText === 'inicio' || $messageText === 'menu') {
+        // --- 1) Si hay un estado activo relacionado con AUTENTICACIÓN, procesarlo primero ---
+        $authSteps = [
+            'awaiting_username',
+            'awaiting_password'
+        ];
+        if (!empty($userState['step']) && in_array($userState['step'], $authSteps)) {
+            \Log::info("Estado de autenticación detectado ({$userState['step']}) — manejando por flujo de auth");
+            $this->handleAuthFlow($userPhone, $messageText, $userState);
+            \Log::info("=== PROCESS MESSAGE FINALIZADO (por auth flow) ===");
+            return;
+        }
+
+        // --- 2) Si hay un estado activo relacionado con flujo de certificado, procesarlo ---
+        $certificateSteps = [
+            'choosing_certificate_type',
+            'awaiting_nit_ticket',
+            'awaiting_ticket',
+            'awaiting_nit_general',
+            'awaiting_nit_vigencia',
+            'awaiting_year'
+        ];
+        if (!empty($userState['step']) && in_array($userState['step'], $certificateSteps)) {
+            \Log::info("Estado activo detectado ({$userState['step']}) — manejando por flujo de certificado");
+            $this->handleCertificateFlow($userPhone, $messageLower, $userState);
+            \Log::info("=== PROCESS MESSAGE FINALIZADO (por flujo activo) ===");
+            return;
+        }
+
+        // --- 3) Handlers generales (sin números) ---
+        // Saludos / menú
+        if (str_contains($messageLower, 'hola') || $messageLower === 'inicio' || $messageLower === 'menu') {
             \Log::info("🤖 Enviando mensaje de bienvenida");
             $this->sendWelcomeMessage($userPhone);
             $this->updateUserState($userPhone, ['step' => 'main_menu']);
             return;
         }
 
-        if ($messageText === '1' || str_contains($messageText, 'generar certificado')) {
-            \Log::info("🤖 Usuario seleccionó Generar Certificado");
-            $this->sendCertificateOptions($userPhone);
-            $this->updateUserState($userPhone, ['step' => 'choosing_certificate_type']);
+        // Generar certificado (inicio del flujo) - detecta palabras, no números
+        if (str_contains($messageLower, 'generar certificado') || $messageLower === 'generar' || str_contains($messageLower, 'certificado')) {
+            \Log::info("🤖 Usuario solicitó iniciar flujo de Generar Certificado");
+            $this->startAuthentication($userPhone);
             return;
         }
 
-        if ($messageText === '2' || str_contains($messageText, 'requisitos')) {
-            \Log::info("🤖 Usuario seleccionó Requisitos");
+        // Requisitos
+        if (str_contains($messageLower, 'requisitos')) {
+            \Log::info("🤖 Usuario solicitó Requisitos");
             $this->sendRequirements($userPhone);
             return;
         }
 
-        if ($messageText === '3' || str_contains($messageText, 'soporte')) {
-            \Log::info("🤖 Usuario seleccionó Soporte");
+        // Soporte
+        if (str_contains($messageLower, 'soporte') || str_contains($messageLower, 'ayuda') || str_contains($messageLower, 'contacto')) {
+            \Log::info("🤖 Usuario solicitó Soporte");
             $this->sendSupportInfo($userPhone);
             return;
         }
 
-        \Log::info("🔄 Iniciando manejo de flujo de certificados");
-        // Manejar flujo de generación de certificados
-        $this->handleCertificateFlow($userPhone, $messageText, $userState);
-        
+        // Registro
+        if (str_contains($messageLower, 'registro') || str_contains($messageLower, 'registrarse')) {
+            \Log::info("🤖 Usuario solicitó información de registro");
+            $this->sendRegistrationInfo($userPhone);
+            return;
+        }
+
+        // Consulta genérica (ejemplo: "consultar certificado", "consulta")
+        if (str_contains($messageLower, 'consult') || str_contains($messageLower, 'consulta')) {
+            \Log::info("🤖 Usuario solicitó Consulta");
+            $this->updateUserState($userPhone, ['step' => 'consulting', 'type' => 'query']);
+            $this->sendMessage($userPhone, "¿Qué deseas consultar? Ingresa NIT, número de ticket o año de vigencia.");
+            return;
+        }
+
+        // Si no cae en nada, enviar sugerencia
+        \Log::info("❓ No se reconoció comando global, enviando ayuda corta");
+        $this->sendMessage($userPhone, "No entendí 🤔. Puedes escribir: *Generar Certificado*, *Requisitos*, *Soporte* o *Consultar Certificado*.");
         \Log::info("=== PROCESS MESSAGE FINALIZADO ===");
+    }
+
+    /**
+     * Manejar flujo de autenticación
+     */
+    private function handleAuthFlow($userPhone, $messageText, $userState)
+    {
+        \Log::info("=== HANDLE AUTH FLOW INICIADO ===");
+        \Log::info("Paso actual: " . ($userState['step'] ?? 'none'));
+        \Log::info("Mensaje: {$messageText}");
+
+        $step = $userState['step'] ?? '';
+
+        switch ($step) {
+            case 'awaiting_username':
+                \Log::info("👤 Usuario ingresando username: {$messageText}");
+                $this->processUsername($userPhone, $messageText);
+                break;
+
+            case 'awaiting_password':
+                \Log::info("🔐 Usuario ingresando password");
+                $this->processPassword($userPhone, $messageText);
+                break;
+
+            default:
+                \Log::info("🔀 Estado de auth no reconocido, reiniciando");
+                $this->startAuthentication($userPhone);
+                break;
+        }
+
+        \Log::info("=== HANDLE AUTH FLOW FINALIZADO ===");
+    }
+
+    /**
+     * Iniciar proceso de autenticación
+     */
+    private function startAuthentication($userPhone)
+    {
+        \Log::info("🔐 Iniciando autenticación para usuario: {$userPhone}");
+        
+        $message = "🔐 *VALIDACIÓN DE USUARIO*\n\n";
+        $message .= "⚠️ *Debes validar tu información antes de generar un certificado.*\n\n";
+        $message .= "Por favor, ingresa tu *USUARIO*:";
+        
+        $this->sendMessage($userPhone, $message);
+        $this->updateUserState($userPhone, ['step' => 'awaiting_username']);
+    }
+
+    /**
+     * Procesar nombre de usuario
+     */
+    private function processUsername($userPhone, $username)
+    {
+        \Log::info("🔍 Buscando usuario en BD: {$username}");
+        
+        // Buscar si el usuario existe
+        $empresa = Empresa::buscarPorUsuario($username);
+        
+        if (!$empresa) {
+            \Log::warning("❌ Usuario no encontrado: {$username}");
+            $message = "❌ *USUARIO NO REGISTRADO*\n\n";
+            $message .= "No tienes usuario registrado con nosotros.\n\n";
+            $message .= "Por favor, *regístrate* y vuelve aquí!\n\n";
+            $message .= "Escribe *REGISTRO* para ver información de registro o *MENU* para volver al inicio.";
+            
+            $this->sendMessage($userPhone, $message);
+            $this->clearUserState($userPhone);
+            return;
+        }
+        
+        \Log::info("✅ Usuario encontrado: " . $empresa->representante_legal);
+        
+        // Usuario existe, pedir contraseña
+        $message = "✅ Usuario encontrado.\n\n";
+        $message .= "👤 *" . $empresa->representante_legal . "*\n\n";
+        $message .= "Ahora ingresa tu *CONTRASEÑA*:";
+        
+        $this->sendMessage($userPhone, $message);
+        $this->updateUserState($userPhone, [
+            'step' => 'awaiting_password',
+            'username' => $username,
+            'empresa_id' => $empresa->id,
+            'nit' => $empresa->nit
+        ]);
+    }
+
+    /**
+     * Procesar contraseña
+     */
+    private function processPassword($userPhone, $password)
+    {
+        $userState = $this->getUserState($userPhone);
+        $username = $userState['username'] ?? null;
+        
+        if (!$username) {
+            \Log::error("❌ No se encontró username en el estado");
+            $this->sendMessage($userPhone, "❌ Error en la autenticación. Por favor, inicia nuevamente.");
+            $this->clearUserState($userPhone);
+            return;
+        }
+        
+        \Log::info("🔐 Validando contraseña para usuario: {$username}");
+        
+        $empresa = Empresa::buscarPorUsuario($username);
+        
+        if (!$empresa) {
+            \Log::error("❌ Empresa no encontrada para usuario: {$username}");
+            $this->sendMessage($userPhone, "❌ Error en la autenticación. Por favor, inicia nuevamente.");
+            $this->clearUserState($userPhone);
+            return;
+        }
+        
+        if (!$empresa->verificarContraseña($password)) {
+            \Log::warning("❌ Contraseña incorrecta para usuario: {$username}");
+            $message = "❌ *CONTRASEÑA INCORRECTA*\n\n";
+            $message .= "La contraseña ingresada no es correcta.\n\n";
+            $message .= "Por favor, vuelve a ingresar tu *USUARIO* o escribe *MENU* para volver al inicio.";
+            
+            $this->sendMessage($userPhone, $message);
+            $this->updateUserState($userPhone, [
+                'step' => 'awaiting_username',
+                'username' => null
+            ]);
+            return;
+        }
+        
+        \Log::info("✅ Autenticación exitosa para: " . $empresa->representante_legal);
+        
+        // Autenticación exitosa
+        $message = "✅ *AUTENTICACIÓN EXITOSA*\n\n";
+        $message .= "Bienvenido *{$empresa->representante_legal}*\n";
+        $message .= "📄 NIT: *{$empresa->nit}*\n\n";
+        $message .= "Ahora puedes generar tu certificado.\n\n";
+        
+        $this->sendMessage($userPhone, $message);
+        
+        // Proceder con las opciones de certificado
+        $this->sendCertificateOptions($userPhone);
+        $this->updateUserState($userPhone, [
+            'step' => 'choosing_certificate_type',
+            'authenticated' => true,
+            'empresa_nit' => $empresa->nit,
+            'representante_legal' => $empresa->representante_legal
+        ]);
     }
 
     private function handleCertificateFlow($userPhone, $messageText, $userState)
@@ -114,84 +305,74 @@ class WhatsAppController extends Controller
         \Log::info("Paso actual: " . ($userState['step'] ?? 'none'));
         \Log::info("Mensaje: {$messageText}");
 
-        switch ($userState['step'] ?? '') {
+        $step = $userState['step'] ?? '';
+
+        // Verificar si está autenticado para generar certificados
+        if (!isset($userState['authenticated']) || !$userState['authenticated']) {
+            \Log::warning("❌ Usuario no autenticado intentando generar certificado");
+            $this->sendMessage($userPhone, "❌ Debes autenticarte primero para generar certificados.");
+            $this->startAuthentication($userPhone);
+            return;
+        }
+
+        $nit = $userState['empresa_nit'] ?? null;
+        if (!$nit) {
+            \Log::error("❌ No se encontró NIT en el estado del usuario autenticado");
+            $this->sendMessage($userPhone, "❌ Error: No se encontró información de la empresa. Por favor, autentícate nuevamente.");
+            $this->startAuthentication($userPhone);
+            return;
+        }
+
+        switch ($step) {
             case 'choosing_certificate_type':
-                \Log::info("🔀 Usuario eligiendo tipo de certificado");
-                if ($messageText === '1' || str_contains($messageText, 'ticket')) {
+                \Log::info("🔀 Usuario eligiendo tipo de certificado (por texto)");
+                if (str_contains($messageText, 'ticket')) {
                     \Log::info("🎫 Usuario seleccionó Ticket");
                     $this->updateUserState($userPhone, [
-                        'step' => 'awaiting_nit_ticket',
+                        'step' => 'awaiting_ticket',
                         'type' => 'ticket'
                     ]);
-                    $this->sendMessage($userPhone, "🪪 *Certificado por TICKET*\n\nPor favor ingresa el NIT de la empresa:");
-                } elseif ($messageText === '2' || str_contains($messageText, 'nit')) {
-                    \Log::info("🏢 Usuario seleccionó NIT");
-                    $this->updateUserState($userPhone, [
-                        'step' => 'awaiting_nit_general',
-                        'type' => 'nit'
+                    $this->sendMessage($userPhone, "🎫 *Certificado por TICKET*\n\nPor favor ingresa el número de *TICKET*:");
+                } elseif (str_contains($messageText, 'nit') && !str_contains($messageText, 'vigencia')) {
+                    \Log::info("🏢 Usuario seleccionó NIT - Generando certificado general");
+                    // Generar certificado general directamente con el NIT autenticado
+                    $this->generateAndSendCertificate($userPhone, 'nit_general', [
+                        'nit' => $nit
                     ]);
-                    $this->sendMessage($userPhone, "🏢 *Certificado por NIT*\n\nIngresa el NIT o cédula del empresario:");
-                } elseif ($messageText === '3' || str_contains($messageText, 'vigencia')) {
+                } elseif (str_contains($messageText, 'vigencia') || str_contains($messageText, 'vigente')) {
                     \Log::info("📅 Usuario seleccionó Vigencia");
                     $this->updateUserState($userPhone, [
-                        'step' => 'awaiting_nit_vigencia',
+                        'step' => 'awaiting_year',
                         'type' => 'vigencia'
                     ]);
-                    $this->sendMessage($userPhone, "📅 *Certificado por VIGENCIA*\n\nPrimero ingresa el NIT o cédula del empresario:");
+                    $this->sendMessage($userPhone, "📅 *Certificado por VIGENCIA*\n\nIngresa el *AÑO* de la vigencia (ejemplo: 2025). Solo se permiten 15 años atrás desde el actual.");
                 } else {
-                    \Log::info("❌ Opción no reconocida, reenviando opciones");
-                    $this->sendCertificateOptions($userPhone);
+                    \Log::info("❌ Opción no reconocida en choosing_certificate_type, reenviando instrucciones");
+                    $this->sendMessage($userPhone, "No reconocí la opción. Responde con *TICKET*, *NIT* o *VIGENCIA* según corresponda.");
                 }
-                break;
-
-            case 'awaiting_nit_ticket':
-                \Log::info("🔢 Usuario ingresando NIT para ticket: {$messageText}");
-                $this->updateUserState($userPhone, [
-                    'step' => 'awaiting_ticket',
-                    'nit' => $messageText
-                ]);
-                $this->sendMessage($userPhone, "🎫 Ahora ingresa el número de *TICKET*:");
                 break;
 
             case 'awaiting_ticket':
                 \Log::info("🎟️ Usuario ingresando ticket: {$messageText}");
-                $userState = $this->getUserState($userPhone);
                 $this->generateAndSendCertificate($userPhone, 'nit_ticket', [
-                    'nit' => $userState['nit'],
+                    'nit' => $nit,
                     'ticket' => $messageText
                 ]);
                 break;
 
-            case 'awaiting_nit_general':
-                \Log::info("🔢 Usuario ingresando NIT general: {$messageText}");
-                $this->generateAndSendCertificate($userPhone, 'nit_general', [
-                    'nit' => $messageText
-                ]);
-                break;
-
-            case 'awaiting_nit_vigencia':
-                \Log::info("🔢 Usuario ingresando NIT para vigencia: {$messageText}");
-                $this->updateUserState($userPhone, [
-                    'step' => 'awaiting_year',
-                    'nit' => $messageText
-                ]);
-                $this->sendMessage($userPhone, "📋 Ingresa el *AÑO* de la vigencia:\n\nEjemplo: 2025\n\nSolo se permiten 15 años atrás desde el actual.");
-                break;
-
             case 'awaiting_year':
                 \Log::info("📅 Usuario ingresando año: {$messageText}");
-                $userState = $this->getUserState($userPhone);
-                $year = intval($messageText);
+                $year = intval(preg_replace('/[^0-9]/','',$messageText));
                 $currentYear = date('Y');
 
-                if ($year > $currentYear || $year < ($currentYear - 15)) {
+                if ($year <= 0 || $year > $currentYear || $year < ($currentYear - 15)) {
                     \Log::warning("❌ Año fuera de rango: {$year}");
-                    $this->sendMessage($userPhone, "❌ *Año fuera de rango*\n\nSolo se permiten vigencias entre " . ($currentYear - 15) . " y $currentYear.");
+                    $this->sendMessage($userPhone, "❌ *Año fuera de rango*\n\nSolo se permiten vigencias entre " . ($currentYear - 15) . " y $currentYear . Por favor ingresa un año válido (ej: 2025).");
                     return;
                 }
 
                 $this->generateAndSendCertificate($userPhone, 'nit_vigencia', [
-                    'nit' => $userState['nit'],
+                    'nit' => $nit,
                     'vigencia' => $year
                 ]);
                 break;
@@ -201,7 +382,7 @@ class WhatsAppController extends Controller
                 $this->sendWelcomeMessage($userPhone);
                 break;
         }
-        
+
         \Log::info("=== HANDLE CERTIFICATE FLOW FINALIZADO ===");
     }
 
@@ -238,7 +419,14 @@ class WhatsAppController extends Controller
             // Ofrecer volver al menú
             $this->sendMessage($userPhone, "¿Necesitas algo más? Escribe *MENU* para ver las opciones.");
 
-            $this->clearUserState($userPhone);
+            // Limpiar estado pero mantener autenticación
+            $userState = $this->getUserState($userPhone);
+            $this->updateUserState($userPhone, [
+                'step' => 'main_menu',
+                'authenticated' => true,
+                'empresa_nit' => $userState['empresa_nit'] ?? null,
+                'representante_legal' => $userState['representante_legal'] ?? null
+            ]);
 
         } catch (\Exception $e) {
             \Log::error('❌ Error generando certificado WhatsApp: ' . $e->getMessage());
@@ -250,7 +438,7 @@ class WhatsAppController extends Controller
         \Log::info("=== GENERATE AND SEND CERTIFICATE FINALIZADO ===");
     }
 
-    // Métodos auxiliares (reutilizar los que ya tenemos)
+    // Métodos auxiliares existentes (mantener igual)
     private function buscarCertificados($tipo, $nit, $ticket = null, $vigencia = null)
     {
         \Log::info("🔍 Buscando certificados - Tipo: {$tipo}, NIT: {$nit}, Ticket: {$ticket}, Vigencia: {$vigencia}");
@@ -333,11 +521,13 @@ class WhatsAppController extends Controller
     {
         \Log::info("👋 Enviando mensaje de bienvenida a {$userPhone}");
         $message = "👋 *Bienvenido al Chatbot FIC - SENA*\n\n";
-        $message .= "Selecciona una opción:\n\n";
-        $message .= "1️⃣ *Generar Certificado* - Obtener certificado FIC\n";
-        $message .= "2️⃣ *Requisitos* - Información requerida\n";
-        $message .= "3️⃣ *Soporte* - Contactar asistencia\n\n";
-        $message .= "Responde con el *número* de la opción deseada.";
+        $message .= "Opciones disponibles (escribe el nombre de la opción):\n\n";
+        $message .= "• *Generar Certificado* - Para iniciar la creación de certificados\n";
+        $message .= "• *Requisitos* - Información necesaria\n";
+        $message .= "• *Soporte* - Contacto de asistencia\n";
+        $message .= "• *Registro* - Información para registrarse\n";
+        $message .= "• *Consultar Certificado* - Buscar por NIT, ticket o año\n\n";
+        $message .= "Ejemplo: escribe *Generar Certificado* para empezar.";
 
         $this->sendMessage($userPhone, $message);
     }
@@ -346,11 +536,11 @@ class WhatsAppController extends Controller
     {
         \Log::info("📄 Enviando opciones de certificado a {$userPhone}");
         $message = "📄 *GENERAR CERTIFICADO FIC*\n\n";
-        $message .= "Selecciona el tipo de certificado:\n\n";
-        $message .= "1️⃣ *Por TICKET* - Certificado específico\n";
-        $message .= "2️⃣ *Por NIT* - Todos los certificados\n";
-        $message .= "3️⃣ *Por VIGENCIA* - Por año específico\n\n";
-        $message .= "Responde con el *número* de tu elección.";
+        $message .= "Por favor indica el *tipo* de certificado escribiendo su nombre:\n\n";
+        $message .= "• *TICKET* - Certificado específico por número de ticket\n";
+        $message .= "• *NIT* - Todos los certificados asociados a tu NIT\n";
+        $message .= "• *VIGENCIA* - Certificado filtrado por año de vigencia\n\n";
+        $message .= "Ejemplo: responde *NIT* para buscar todos tus certificados.";
 
         $this->sendMessage($userPhone, $message);
     }
@@ -379,7 +569,21 @@ class WhatsAppController extends Controller
         $this->sendMessage($userPhone, $message);
     }
 
-    // Métodos para enviar mensajes y documentos
+    private function sendRegistrationInfo($userPhone)
+    {
+        \Log::info("📝 Enviando info de registro a {$userPhone}");
+        $message = "📝 *REGISTRO DE NUEVO USUARIO*\n\n";
+        $message .= "Para registrarte en nuestro sistema, debes comunicarte con nosotros:\n\n";
+        $message .= "📧 *Email:* registros@fic.sena.edu.co\n";
+        $message .= "📞 *Teléfono:* 01-8000-123456\n";
+        $message .= "🌐 *Web:* www.fic.sena.edu.co/registro\n\n";
+        $message .= "Nuestro equipo te ayudará con el proceso de registro.\n\n";
+        $message .= "Escribe *MENU* para volver al inicio.";
+
+        $this->sendMessage($userPhone, $message);
+    }
+
+    // Métodos para enviar mensajes y documentos (mantener igual)
     private function sendMessage($to, $message)
     {
         \Log::info("✉️ ENVIANDO MENSAJE - Para: {$to}");

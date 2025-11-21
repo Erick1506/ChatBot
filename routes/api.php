@@ -4,6 +4,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\CertificadoFICController; 
 use App\Http\Controllers\WhatsAppController;
+use App\Http\Controllers\EmpresaController;
+
 
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
@@ -19,13 +21,9 @@ Route::post('/chatbot/generar-certificado', [CertificadoFICController::class, 'a
 Route::get('/whatsapp/webhook', [WhatsAppController::class, 'verifyWebhook']);
 Route::post('/whatsapp/webhook', [WhatsAppController::class, 'webhook']);
 
-Route::get('/test-whatsapp-send', function() {
-    $whatsapp = new App\Http\Controllers\WhatsAppController();
-    
-    // Reemplaza con TU número de WhatsApp real (con código de país)
-    $testPhone = '573014368807'; // Ejemplo: Colombia
-    
-    $whatsapp->sendMessage($testPhone, "🤖 *TEST BOT* \n\nEste es un mensaje de prueba desde tu servidor Laravel!");
-    
-    return response()->json(['status' => 'Mensaje enviado']);
-});
+
+// Rutas de usuarios
+Route::post('/usuarios/validar', [EmpresaController::class, 'validarCredenciales']);
+Route::post('/usuarios', [EmpresaController::class, 'crear']);
+Route::get('/usuarios/{nit}', [EmpresaController::class, 'obtenerPorNit']);
+Route::put('/usuarios/{nit}', [EmpresaController::class, 'actualizar']);

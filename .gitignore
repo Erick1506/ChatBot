@@ -4,6 +4,7 @@
 /public/storage
 /storage/*.key
 /vendor
+texto.txt
 .env
 .env.backup
 .env.production
