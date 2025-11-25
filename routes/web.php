@@ -38,5 +38,4 @@ Route::get('/whatsapp/debug', function() {
     ]);
 });
 
-require __DIR__ . '/debug.php';
 

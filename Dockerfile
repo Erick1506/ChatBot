@@ -29,13 +29,17 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # 5. Crear directorio de trabajo
 WORKDIR /var/www/html
 
-# 6. COPIAR TODOS LOS ARCHIVOS PRIMERO (incluyendo artisan)
+# 6. COPIAR TODOS LOS ARCHIVOS
 COPY . .
 
-# 7. INSTALAR DEPENDENCIAS DESPUÉS de copiar todo
-RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress
+# 7. INSTALAR DEPENDENCIAS SIN EJECUTAR SCRIPTS (evita que composer llame a artisan durante build)
+RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress --no-scripts
 
-# 8. Configurar Apache
+# 8. Generar autoload optimizado y ejecutar package discover ahora que el código está presente
+RUN composer dump-autoload -o \
+    && php -v >/dev/null || true
+
+# 9. Configurar Apache (mantener que DocumentRoot sea public)
 RUN echo '<VirtualHost *:80>' > /etc/apache2/sites-available/000-default.conf && \
     echo '    ServerAdmin webmaster@localhost' >> /etc/apache2/sites-available/000-default.conf && \
     echo '    DocumentRoot /var/www/html/public' >> /etc/apache2/sites-available/000-default.conf && \
@@ -50,25 +54,19 @@ RUN echo '<VirtualHost *:80>' > /etc/apache2/sites-available/000-default.conf &&
     echo '    CustomLog ${APACHE_LOG_DIR}/access.log combined' >> /etc/apache2/sites-available/000-default.conf && \
     echo '</VirtualHost>' >> /etc/apache2/sites-available/000-default.conf
 
-# 9. Habilitar mod_rewrite
+# 10. Habilitar mod_rewrite
 RUN a2enmod rewrite
 
-# 10. Configurar permisos
-RUN chown -R www-data:www-data /var/www/html && \
-    chmod -R 775 storage bootstrap/cache
+# 11. Crear directorios de storage si no existen y ajustar permisos
+RUN mkdir -p storage/framework/{sessions,views,cache} \
+    && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
+    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# 11. Crear directorios de storage
-RUN mkdir -p storage/framework/{sessions,views,cache}
+# 12. (Opcional) No caches config/route/view en build - hacerlo en runtime si lo deseas.
+# Eliminamos php artisan config:cache / route:cache / view:cache para que Render injecte env vars en runtime.
 
-# 12. Optimizar Laravel
-RUN php artisan config:cache && \
-    php artisan route:cache && \
-    php artisan view:cache
-
-# 13. Crear enlace de storage
-RUN php artisan storage:link
-
-# 14. Exponer puerto
+# 13. Exponer puerto
 EXPOSE 80
 
-CMD ["apache2-foreground"]  
+# 14. CMD por defecto (apache)
+CMD ["apache2-foreground"]

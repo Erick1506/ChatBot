@@ -24,7 +24,6 @@ public function verifyWebhook(Request $request)
     // SOLUCIÓN DEFINITIVA - Token hardcodeado
     $expectedToken = 'chatbotwhatsapp';
     
-    \Log::info("🔍 VERIFICACIÓN - Mode: {$mode}, Token recibido: '{$token}', Token esperado: '{$expectedToken}', Challenge: {$challenge}");
 
     // Verificar parámetros requeridos
     if (empty($mode) || empty($token) || empty($challenge)) {
@@ -51,9 +50,7 @@ public function verifyWebhook(Request $request)
             ->header('Content-Type', 'text/plain');
     }
 
-    \Log::warning("❌ FALLA DE VERIFICACIÓN - Token no coincide");
-    \Log::warning("Detalles - Recibido: '{$token}' (normalizado: '{$normalizedReceived}'), Esperado: '{$expectedToken}' (normalizado: '{$normalizedExpected}')");
-
+   
     return response('Forbidden - Token mismatch', 403);
 }
 
@@ -61,90 +58,32 @@ public function verifyWebhook(Request $request)
     public function webhook(Request $request)
     {
         \Log::info('=== WEBHOOK INICIADO ===');
+        \Log::info('Headers:', $request->headers->all());
+        \Log::info('Webhook data recibida:', $request->all());
 
-        // 0) Opcional: validación de firma (activa sólo si FACEBOOK_APP_SECRET está definido)
-        $secret = env('FACEBOOK_APP_SECRET');
-        if (!empty($secret)) {
-            $sigHeader = $request->header('x-hub-signature-256', '');
-            if (empty($sigHeader)) {
-                \Log::warning('WHATSAPP_WEBHOOK_NO_SIGNATURE', ['ip' => $request->ip()]);
-                return response('Missing signature', 401);
-            }
-            $sig = (strpos($sigHeader, 'sha256=') === 0) ? substr($sigHeader, 7) : $sigHeader;
-            $raw = $request->getContent();
-            $expected = hash_hmac('sha256', $raw, $secret);
-            if (!hash_equals($expected, $sig)) {
-                \Log::warning('WHATSAPP_WEBHOOK_INVALID_SIGNATURE', [
-                    'expected' => $expected, 'received' => $sig, 'ip' => $request->ip()
-                ]);
-                return response('Invalid signature', 401);
-            }
+        $data = $request->all();
+
+        // Verificar que es un mensaje válido
+        if (isset($data['entry'][0]['changes'][0]['value']['messages'][0])) {
+            $message = $data['entry'][0]['changes'][0]['value']['messages'][0];
+            $rawFrom = $message['from'] ?? '';
+            $normalizedPhone = preg_replace('/\D+/', '', $rawFrom); 
+            $userPhone = $normalizedPhone;
+            $messageText = $message['text']['body'] ?? '';
+            
+            \Log::info("📱 Mensaje recibido - De: {$userPhone}, Texto: {$messageText}");
+            \Log::info("📋 Detalles del mensaje:", $message);
+
+            // Procesar el mensaje
+            $this->processMessage($userPhone, $messageText);
+        } else {
+            \Log::warning('❌ No se encontró mensaje en el webhook');
+            \Log::info('Estructura completa recibida:', $data);
         }
 
-        // 1) Log raw body for debugging (temporary)
-        $rawBody = $request->getContent();
-        \Log::info('WHATSAPP_WEBHOOK_RAW', ['body' => $rawBody]);
-
-        try {
-            $data = $request->all();
-            \Log::info('Headers:', $request->headers->all());
-            \Log::info('Webhook data recibida (parsed):', $data);
-
-            // Validación defensiva: estructura mínima
-            if (!isset($data['object']) || !isset($data['entry']) || !is_array($data['entry'])) {
-                \Log::warning('WHATSAPP_WEBHOOK_IGNORED_STRUCTURE', ['payload' => $data]);
-                return response('EVENT_IGNORED', 200);
-            }
-
-            // Iterar de forma segura
-            foreach ($data['entry'] as $entry) {
-                foreach ($entry['changes'] ?? [] as $change) {
-                    $value = $change['value'] ?? null;
-                    foreach ($value['messages'] ?? [] as $message) {
-                        try {
-                            $rawFrom = $message['from'] ?? '';
-                            $normalizedPhone = preg_replace('/\D+/', '', $rawFrom);
-                            $userPhone = $normalizedPhone;
-                            $messageText = $message['text']['body'] ?? '';
-
-                            \Log::info("📱 Mensaje recibido - De: {$userPhone}, Texto: {$messageText}");
-                            // Llamada a tu lógica principal; captura errores a nivel de cada mensaje
-                            try {
-                                $this->processMessage($userPhone, $messageText);
-                            } catch (\Throwable $inner) {
-                                \Log::error('ERROR_PROCESSING_SINGLE_MESSAGE', [
-                                    'error' => $inner->getMessage(),
-                                    'trace' => $inner->getTraceAsString(),
-                                    'message' => $message
-                                ]);
-                                // No re-throw: seguimos procesando otros mensajes y devolvemos 200
-                            }
-                        } catch (\Throwable $iterEx) {
-                            \Log::error('ERROR_ITERATING_MESSAGE', [
-                                'error' => $iterEx->getMessage(),
-                                'trace' => $iterEx->getTraceAsString(),
-                                'message_raw' => $message ?? null
-                            ]);
-                        }
-                    }
-                }
-            }
-
-            \Log::info('=== WEBHOOK PROCESADO CORRECTAMENTE ===');
-            // Responder 200 rápido
-            return response('EVENT_RECEIVED', 200);
-        } catch (\Throwable $e) {
-            // Loguear todo y devolver 200 para que Meta no reintente inmediatamente (hasta que debuguees)
-            \Log::error('WHATSAPP_WEBHOOK_FATAL', [
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'raw' => $rawBody
-            ]);
-
-            return response('EVENT_RECEIVED', 200);
-        }
+        \Log::info('=== WEBHOOK FINALIZADO ===');
+        return response('Mensaje enviado', 200);
     }
-
 
     private function processMessage($userPhone, $messageText)
     {
