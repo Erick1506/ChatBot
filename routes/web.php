@@ -2,7 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function() { return response('root ok', 200); });
+Route::get('/', function() { return response('Link del chat Bot:  https://wa.me/message/5ZDQ2UBX3UHLO1', 200); });
 
 
 Route::get('/login', function () {
