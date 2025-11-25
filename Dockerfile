@@ -1,6 +1,6 @@
 FROM php:8.0-apache
 
-# Instalar dependencias del sistema
+# 1. Instalar dependencias del sistema
 RUN apt-get update && apt-get install -y \
     build-essential \
     libpng-dev \
@@ -17,31 +17,61 @@ RUN apt-get update && apt-get install -y \
     libonig-dev \
     libxml2-dev
 
-# Limpiar cache
+# 2. Limpiar cache
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Instalar extensiones de PHP
+# 3. Instalar extensiones de PHP
 RUN docker-php-ext-install pdo_mysql mbstring zip exif pcntl bcmath gd
 
-# Instalar Composer
+# 4. Instalar Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Copiar el contenido de la aplicación
-COPY . /var/www/html
-
-# Establecer el directorio de trabajo
+# 5. Crear directorio de trabajo
 WORKDIR /var/www/html
 
-# Copiar configuración personalizada de Apache
-COPY .docker/apache.conf /etc/apache2/sites-available/000-default.conf
+# 6. COPIAR PRIMERO solo composer.json y composer.lock
+COPY composer.json composer.lock ./
 
-# Habilitar mod_rewrite de Apache
+# 7. INSTALAR DEPENDENCIAS (esto es crucial)
+RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress
+
+# 8. COPIAR EL RESTO de la aplicación
+COPY . .
+
+# 9. Configurar Apache
+RUN echo '<VirtualHost *:80>
+    ServerAdmin webmaster@localhost
+    DocumentRoot /var/www/html/public
+
+    <Directory /var/www/html/public>
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    ErrorLog ${APACHE_LOG_DIR}/error.log
+    CustomLog ${APACHE_LOG_DIR}/access.log combined
+</VirtualHost>' > /etc/apache2/sites-available/000-default.conf
+
+# 10. Habilitar mod_rewrite
 RUN a2enmod rewrite
 
-# Cambiar el propietario del directorio
-RUN chown -R www-data:www-data /var/www/html
+# 11. Configurar permisos
+RUN chown -R www-data:www-data /var/www/html && \
+    chmod -R 775 storage bootstrap/cache
 
-# Exponer el puerto 80
+# 12. Crear directorios de storage
+RUN mkdir -p storage/framework/{sessions,views,cache}
+
+# 13. Optimizar Laravel
+RUN php artisan config:cache && \
+    php artisan route:cache && \
+    php artisan view:cache
+
+# 14. Crear enlace de storage
+RUN php artisan storage:link
+
+# 15. Exponer puerto
 EXPOSE 80
 
 CMD ["apache2-foreground"]
