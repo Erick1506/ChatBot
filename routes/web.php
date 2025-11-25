@@ -38,3 +38,4 @@ Route::get('/whatsapp/debug', function() {
         'app_url' => config('app.url')
     ]);
 });
+
