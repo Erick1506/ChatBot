@@ -1,46 +1,47 @@
-# Dockerfile optimizado para Laravel (PHP 8.2 FPM)
-FROM php:8.2-fpm
+FROM php:8.0-apache
 
-# Instalar dependencias del sistema y extensiones PHP necesarias
+# Instalar dependencias del sistema
 RUN apt-get update && apt-get install -y \
-    git unzip zip libzip-dev libpng-dev libjpeg-dev libonig-dev libicu-dev \
-    libxml2-dev curl libfreetype6-dev libjpeg62-turbo-dev libpng-dev \
-    libpq-dev build-essential \
- && docker-php-ext-configure gd --with-freetype --with-jpeg \
- && docker-php-ext-install pdo_mysql pdo_pgsql zip gd intl bcmath opcache pcntl
+    build-essential \
+    libpng-dev \
+    libjpeg62-turbo-dev \
+    libfreetype6-dev \
+    locales \
+    zip \
+    jpegoptim optipng pngquant gifsicle \
+    vim \
+    unzip \
+    git \
+    curl \
+    libzip-dev \
+    libonig-dev \
+    libxml2-dev
 
-# Instalar composer (desde la imagen oficial de composer)
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+# Limpiar cache
+RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Evitar problemas con permisos en composer (opcional pero útil)
-ENV COMPOSER_ALLOW_SUPERUSER=1
-ENV COMPOSER_HOME=/composer
+# Instalar extensiones de PHP
+RUN docker-php-ext-install pdo_mysql mbstring zip exif pcntl bcmath gd
 
+# Instalar Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Copiar el contenido de la aplicación
+COPY . /var/www/html
+
+# Establecer el directorio de trabajo
 WORKDIR /var/www/html
 
-# Copiar solo archivos de composer para aprovechar cache de Docker
-COPY composer.json composer.lock ./
+# Copiar configuración personalizada de Apache
+COPY .docker/apache.conf /etc/apache2/sites-available/000-default.conf
 
-# Instalar dependencias PHP sin ejecutar scripts (evita ejecutar artisan antes de tiempo)
-RUN composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader --no-scripts
+# Habilitar mod_rewrite de Apache
+RUN a2enmod rewrite
 
-# Copiar todo el proyecto
-COPY . .
+# Cambiar el propietario del directorio
+RUN chown -R www-data:www-data /var/www/html
 
-# Ahora que el código está copiado, ejecutar los scripts necesarios:
-# 1) generar se KEY si no existe (no rompe si ya existe)
-# 2) ejecutar scripts de composer (incluye package:discover)
-# 3) crear storage link (intento seguro)
-RUN php artisan key:generate --ansi || true \
- && composer run-script post-install-cmd --no-interaction || true \
- && composer run-script post-autoload-dump --no-interaction || true \
- && php artisan storage:link || true
+# Exponer el puerto 80
+EXPOSE 80
 
-# Ajustes finales
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache || true
-
-# Exponer puerto
-EXPOSE 9000
-
-# Start command: php artisan serve binding to render $PORT
-CMD ["sh", "-c", "php artisan serve --host=0.0.0.0 --port=${PORT:-8080}"]
+CMD ["apache2-foreground"]
