@@ -38,3 +38,8 @@ Route::get('/whatsapp/debug', function() {
     ]);
 });
 
+// routes/web.php (temporal - solo para debug)
+Route::get('/_health', function() {
+    \Log::info('HEALTH_CHECK_HIT');
+    return response()->json(['ok' => true, 'time' => now()->toDateTimeString()]);
+});
