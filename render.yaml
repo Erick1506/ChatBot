@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: laravel-whatsapp-bot
+    env: php
+    plan: free
+    region: ohio
+    buildCommand: |
+      composer install --no-dev --optimize-autoloader
+      php artisan key:generate --force
+      php artisan storage:link
+      php artisan config:cache
+      php artisan route:cache
+      php artisan view:cache
+    startCommand: php artisan serve --host=0.0.0.0 --port=$PORT
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: false
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: APP_URL
+        fromService:
+          name: laravel-whatsapp-bot
+          type: web
+          property: url
+
+databases:
+  - name: mysql-db
+    plan: free
+    databaseName: ChatBot
+    user: root
