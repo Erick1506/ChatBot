@@ -12,11 +12,6 @@ services:
         value: false
       - key: LOG_CHANNEL
         value: stderr
-      - key: APP_URL
-        fromService:
-          name: laravel-whatsapp-bot
-          type: web
-          property: url
 
 databases:
   - name: mysql-db
