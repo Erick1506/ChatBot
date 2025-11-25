@@ -2,10 +2,10 @@
 .gitignore
 .dockerignore
 Dockerfile
+docker-compose.yml
 node_modules
-vendor
 .env
 .env.local
 .env.production
-docker-compose.yml
 README.md
+# NO excluir vendor/ aquí, se generará durante el build
