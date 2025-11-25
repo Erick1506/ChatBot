@@ -12,50 +12,28 @@ use Barryvdh\DomPDF\Facade\Pdf;
 class WhatsAppController extends Controller
 {
     // Verificar el webhook (requerido por Meta)
-public function verifyWebhook(Request $request)
-{
-    \Log::info('🔐 === WHATSAPP WEBHOOK VERIFICATION STARTED ===');
-    \Log::info('Query parameters:', $request->query());
-    
-    $mode = $request->query('hub_mode');
-    $token = $request->query('hub_verify_token');
-    $challenge = $request->query('hub_challenge');
+    public function verifyWebhook(Request $request)
+    {
+        \Log::info('=== VERIFY WEBHOOK INICIADO ===');
+        \Log::info('Query parameters:', $request->query());
+        
+        $mode = $request->query('hub_mode');
+        $token = $request->query('hub_verify_token');
+        $challenge = $request->query('hub_challenge');
+        
+        $expectedToken = config('services.whatsapp.verify_token');
+        
+        \Log::info("Mode: {$mode}, Token: {$token}, Expected: {$expectedToken}, Challenge: {$challenge}");
 
-    // SOLUCIÓN DEFINITIVA - Token hardcodeado
-    $expectedToken = 'chatbotwhatsapp';
-    
-    \Log::info("🔍 VERIFICACIÓN - Mode: {$mode}, Token recibido: '{$token}', Token esperado: '{$expectedToken}', Challenge: {$challenge}");
+        // Verifica que coincida con tu verify token
+        if ($mode === 'subscribe' && $token === $expectedToken) {
+            \Log::info('✅ Webhook verificado exitosamente');
+            return response($challenge, 200);
+        }
 
-    // Verificar parámetros requeridos
-    if (empty($mode) || empty($token) || empty($challenge)) {
-        \Log::error('❌ Faltan parámetros requeridos');
-        return response('Bad Request - Missing parameters', 400);
+        \Log::warning('❌ Webhook verification failed');
+        return response('Forbidden', 403);
     }
-
-    // Verificar el modo
-    if ($mode !== 'subscribe') {
-        \Log::warning("❌ Modo incorrecto. Esperado: 'subscribe', Recibido: '{$mode}'");
-        return response('Forbidden - Invalid mode', 403);
-    }
-
-    // Verificación case-insensitive por si hay problemas de mayúsculas/minúsculas
-    $normalizedReceived = strtolower(trim($token));
-    $normalizedExpected = strtolower(trim($expectedToken));
-    
-    \Log::info("🔍 COMPARACIÓN NORMALIZADA - Recibido: '{$normalizedReceived}', Esperado: '{$normalizedExpected}'");
-
-    if ($normalizedReceived === $normalizedExpected) {
-        \Log::info('✅ WEBHOOK VERIFICADO EXITOSAMENTE!');
-        \Log::info("📤 Devolviendo challenge: {$challenge}");
-        return response($challenge, 200)
-            ->header('Content-Type', 'text/plain');
-    }
-
-    \Log::warning("❌ FALLA DE VERIFICACIÓN - Token no coincide");
-    \Log::warning("Detalles - Recibido: '{$token}' (normalizado: '{$normalizedReceived}'), Esperado: '{$expectedToken}' (normalizado: '{$normalizedExpected}')");
-
-    return response('Forbidden - Token mismatch', 403);
-}
 
     // Recibir mensajes de WhatsApp
     public function webhook(Request $request)

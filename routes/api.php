@@ -54,53 +54,19 @@ Route::get('/health', function () {
     ]);
 });
 
-// Ruta de prueba con más detalles del sistema
-Route::get('/test', function () {
-    return response()->json([
-        'message' => '✅ API Laravel WhatsApp Bot funcionando correctamente',
-        'timestamp' => now()->toISOString(),
-        'system' => [
-            'php_version' => PHP_VERSION,
-            'laravel_version' => app()->version(),
-            'server' => $_SERVER['SERVER_SOFTWARE'] ?? 'Unknown',
-            'timezone' => config('app.timezone'),
-        ],
-        'endpoints' => [
-            'webhook_whatsapp' => '/api/whatsapp/webhook',
-            'health_check' => '/api/health',
-            'validar_usuario' => '/api/usuarios/validar',
-            'certificados' => '/api/certificados/{nit}'
-        ]
-    ]);
-});
-
-// Ruta para verificar la configuración de WhatsApp
-Route::get('/whatsapp/config', function () {
-    return response()->json([
-        'whatsapp_configured' => !empty(config('services.whatsapp.access_token')),
-        'phone_number_id' => config('services.whatsapp.phone_number_id'),
-        'verify_token' => config('services.whatsapp.verify_token'),
-        'has_access_token' => !empty(config('services.whatsapp.access_token'))
-    ]);
-});
-
-
-// Ruta de diagnóstico para WhatsApp
-Route::get('/whatsapp-debug', function() {
-    $config = config('services.whatsapp');
+// Ruta temporal de diagnóstico del webhook
+Route::get('/webhook-test', function (Request $request) {
+    $testToken = 'chatbotwhatsapp';
+    $testUrl = url('/api/whatsapp/webhook') . '?hub.mode=subscribe&hub.verify_token=' . $testToken . '&hub.challenge=123';
     
     return response()->json([
-        'whatsapp_configuration' => [
-            'verify_token_from_config' => $config['verify_token'] ?? 'NOT_FOUND',
-            'verify_token_from_env' => env('WHATSAPP_VERIFY_TOKEN'),
-            'access_token_exists' => !empty($config['access_token']),
-            'phone_number_id' => $config['phone_number_id'] ?? 'NOT_FOUND',
-            'full_config' => $config
-        ],
-        'environment_check' => [
-            'app_env' => app()->environment(),
+        'diagnostic' => [
             'app_url' => config('app.url'),
-            'variables_loaded' => !empty(env('WHATSAPP_VERIFY_TOKEN'))
-        ]
+            'current_time' => now()->toISOString(),
+            'webhook_test_url' => $testUrl,
+            'expected_token' => $testToken,
+            'should_return' => '123'
+        ],
+        'instructions' => 'Copy the webhook_test_url and test it in browser or curl'
     ]);
 });
