@@ -54,19 +54,34 @@ Route::get('/health', function () {
     ]);
 });
 
-// Ruta temporal de diagnóstico del webhook
-Route::get('/webhook-test', function (Request $request) {
-    $testToken = 'chatbotwhatsapp';
-    $testUrl = url('/api/whatsapp/webhook') . '?hub.mode=subscribe&hub.verify_token=' . $testToken . '&hub.challenge=123';
-    
+// Ruta de prueba con más detalles del sistema
+Route::get('/test', function () {
     return response()->json([
-        'diagnostic' => [
-            'app_url' => config('app.url'),
-            'current_time' => now()->toISOString(),
-            'webhook_test_url' => $testUrl,
-            'expected_token' => $testToken,
-            'should_return' => '123'
+        'message' => '✅ API Laravel WhatsApp Bot funcionando correctamente',
+        'timestamp' => now()->toISOString(),
+        'system' => [
+            'php_version' => PHP_VERSION,
+            'laravel_version' => app()->version(),
+            'server' => $_SERVER['SERVER_SOFTWARE'] ?? 'Unknown',
+            'timezone' => config('app.timezone'),
         ],
-        'instructions' => 'Copy the webhook_test_url and test it in browser or curl'
+        'endpoints' => [
+            'webhook_whatsapp' => '/api/whatsapp/webhook',
+            'health_check' => '/api/health',
+            'validar_usuario' => '/api/usuarios/validar',
+            'certificados' => '/api/certificados/{nit}'
+        ]
     ]);
 });
+
+// Ruta para verificar la configuración de WhatsApp
+Route::get('/whatsapp/config', function () {
+    return response()->json([
+        'whatsapp_configured' => !empty(config('services.whatsapp.access_token')),
+        'phone_number_id' => config('services.whatsapp.phone_number_id'),
+        'verify_token' => config('services.whatsapp.verify_token'),
+        'has_access_token' => !empty(config('services.whatsapp.access_token'))
+    ]);
+});
+
+

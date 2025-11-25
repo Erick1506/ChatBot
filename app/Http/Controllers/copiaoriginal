@@ -23,7 +23,6 @@ class WhatsAppController extends Controller
         
         $expectedToken = config('services.whatsapp.verify_token');
         
-        \Log::info("Mode: {$mode}, Token: {$token}, Expected: {$expectedToken}, Challenge: {$challenge}");
 
         // Verifica que coincida con tu verify token
         if ($mode === 'subscribe' && $token === $expectedToken) {
