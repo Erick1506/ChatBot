@@ -29,16 +29,13 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # 5. Crear directorio de trabajo
 WORKDIR /var/www/html
 
-# 6. COPIAR PRIMERO solo composer.json y composer.lock
-COPY composer.json composer.lock ./
-
-# 7. INSTALAR DEPENDENCIAS (esto es crucial)
-RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress
-
-# 8. COPIAR EL RESTO de la aplicación
+# 6. COPIAR TODOS LOS ARCHIVOS PRIMERO (incluyendo artisan)
 COPY . .
 
-# 9. Configurar Apache - FORMA CORREGIDA
+# 7. INSTALAR DEPENDENCIAS DESPUÉS de copiar todo
+RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress
+
+# 8. Configurar Apache
 RUN echo '<VirtualHost *:80>' > /etc/apache2/sites-available/000-default.conf && \
     echo '    ServerAdmin webmaster@localhost' >> /etc/apache2/sites-available/000-default.conf && \
     echo '    DocumentRoot /var/www/html/public' >> /etc/apache2/sites-available/000-default.conf && \
@@ -53,25 +50,25 @@ RUN echo '<VirtualHost *:80>' > /etc/apache2/sites-available/000-default.conf &&
     echo '    CustomLog ${APACHE_LOG_DIR}/access.log combined' >> /etc/apache2/sites-available/000-default.conf && \
     echo '</VirtualHost>' >> /etc/apache2/sites-available/000-default.conf
 
-# 10. Habilitar mod_rewrite
+# 9. Habilitar mod_rewrite
 RUN a2enmod rewrite
 
-# 11. Configurar permisos
+# 10. Configurar permisos
 RUN chown -R www-data:www-data /var/www/html && \
     chmod -R 775 storage bootstrap/cache
 
-# 12. Crear directorios de storage
+# 11. Crear directorios de storage
 RUN mkdir -p storage/framework/{sessions,views,cache}
 
-# 13. Optimizar Laravel
+# 12. Optimizar Laravel
 RUN php artisan config:cache && \
     php artisan route:cache && \
     php artisan view:cache
 
-# 14. Crear enlace de storage
+# 13. Crear enlace de storage
 RUN php artisan storage:link
 
-# 15. Exponer puerto
+# 14. Exponer puerto
 EXPOSE 80
 
-CMD ["apache2-foreground"]
+CMD ["apache2-foreground"]  
