@@ -47,7 +47,9 @@ class WhatsAppController extends Controller
         // Verificar que es un mensaje válido
         if (isset($data['entry'][0]['changes'][0]['value']['messages'][0])) {
             $message = $data['entry'][0]['changes'][0]['value']['messages'][0];
-            $userPhone = $message['from']; // Número del usuario
+            $rawFrom = $message['from'] ?? '';
+            $normalizedPhone = preg_replace('/\D+/', '', $rawFrom); 
+            $userPhone = $normalizedPhone;
             $messageText = $message['text']['body'] ?? '';
             
             \Log::info("📱 Mensaje recibido - De: {$userPhone}, Texto: {$messageText}");
@@ -68,6 +70,16 @@ class WhatsAppController extends Controller
     {
         \Log::info("=== PROCESS MESSAGE INICIADO ===");
         \Log::info("Procesando mensaje - Usuario: {$userPhone}, Texto: {$messageText}");
+
+    $testNumbers = [
+        '16315551181', // Número de prueba de Meta
+        '16505551111', // Otro número de prueba común
+    ];
+    
+    if (in_array($userPhone, $testNumbers)) {
+        \Log::info("🔧 Ignorando mensaje de prueba de Meta: {$userPhone}");
+        return; // No responder a números de prueba
+    }
         
         $raw = trim($messageText);
         $messageLower = strtolower($raw);
@@ -141,17 +153,9 @@ class WhatsAppController extends Controller
             return;
         }
 
-        // Consulta genérica (ejemplo: "consultar certificado", "consulta")
-        if (str_contains($messageLower, 'consult') || str_contains($messageLower, 'consulta')) {
-            \Log::info("🤖 Usuario solicitó Consulta");
-            $this->updateUserState($userPhone, ['step' => 'consulting', 'type' => 'query']);
-            $this->sendMessage($userPhone, "¿Qué deseas consultar? Ingresa NIT, número de ticket o año de vigencia.");
-            return;
-        }
-
         // Si no cae en nada, enviar sugerencia
         \Log::info("❓ No se reconoció comando global, enviando ayuda corta");
-        $this->sendMessage($userPhone, "No entendí 🤔. Puedes escribir: *Generar Certificado*, *Requisitos*, *Soporte* o *Consultar Certificado*.");
+        $this->sendMessage($userPhone, "No entendí 🤔. Puedes escribir: *Generar Certificado*, *Requisitos*, *Soporte* o *Registro*.");
         \Log::info("=== PROCESS MESSAGE FINALIZADO ===");
     }
 
@@ -525,8 +529,7 @@ class WhatsAppController extends Controller
         $message .= "• *Generar Certificado* - Para iniciar la creación de certificados\n";
         $message .= "• *Requisitos* - Información necesaria\n";
         $message .= "• *Soporte* - Contacto de asistencia\n";
-        $message .= "• *Registro* - Información para registrarse\n";
-        $message .= "• *Consultar Certificado* - Buscar por NIT, ticket o año\n\n";
+        $message .= "• *Registro* - Información para registrarse\n\n";
         $message .= "Ejemplo: escribe *Generar Certificado* para empezar.";
 
         $this->sendMessage($userPhone, $message);
@@ -573,11 +576,8 @@ class WhatsAppController extends Controller
     {
         \Log::info("📝 Enviando info de registro a {$userPhone}");
         $message = "📝 *REGISTRO DE NUEVO USUARIO*\n\n";
-        $message .= "Para registrarte en nuestro sistema, debes comunicarte con nosotros:\n\n";
-        $message .= "📧 *Email:* registros@fic.sena.edu.co\n";
-        $message .= "📞 *Teléfono:* 01-8000-123456\n";
+        $message .= "Para registrarte en nuestro sistema, debes ir a la pagina de oficial:\n\n";
         $message .= "🌐 *Web:* www.fic.sena.edu.co/registro\n\n";
-        $message .= "Nuestro equipo te ayudará con el proceso de registro.\n\n";
         $message .= "Escribe *MENU* para volver al inicio.";
 
         $this->sendMessage($userPhone, $message);

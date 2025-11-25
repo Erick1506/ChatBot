@@ -29,9 +29,6 @@ Route::get('/test-db', function () {
 });
 
 
-Route::post('/generar-certificado', [CertificadoFICController::class, 'generarCertificado']);
-
-
 Route::get('/whatsapp/debug', function() {
     return response()->json([
         'token_exists' => !empty(config('services.whatsapp.access_token')),

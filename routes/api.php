@@ -12,8 +12,6 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 
-// Ruta para el chatbot - SIN middleware de autenticación
-Route::post('/chatbot/generar-certificado', [CertificadoFICController::class, 'apiGenerarCertificado']);
 
 
 
