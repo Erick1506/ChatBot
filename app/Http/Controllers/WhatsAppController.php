@@ -7,100 +7,83 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use App\Models\CertificadoFIC;
 use App\Models\Empresa;
+use Illuminate\Support\Facades\Log; 
 use Barryvdh\DomPDF\Facade\Pdf;
-use App\Jobs\HandleWhatsappWebhook; // asegúrate de que exista si vas a usar colas
-
 
 class WhatsAppController extends Controller
 {
-    /**
-     * GET -> Verificación de webhook (Meta)
-     */
-    public function verifyWebhook(Request $request)
-    {
-        Log::info('🔐 === WHATSAPP WEBHOOK VERIFICATION STARTED ===');
+    // Verificar el webhook (requerido por Meta)
+public function verifyWebhook(Request $request)
+{
+    \Log::info('🔐 === WHATSAPP WEBHOOK VERIFICATION STARTED ===');
+    \Log::info('Query parameters:', $request->query());
+    
+    $mode = $request->query('hub_mode');
+    $token = $request->query('hub_verify_token');
+    $challenge = $request->query('hub_challenge');
 
-        // Soportar tanto hub.mode como hub_mode por si alguien prueba con distinto formato
-        $mode = $request->query('hub.mode') ?? $request->query('hub_mode') ?? null;
-        $token = $request->query('hub.verify_token') ?? $request->query('hub_verify_token') ?? null;
-        $challenge = $request->query('hub.challenge') ?? $request->query('hub_challenge') ?? null;
+    // SOLUCIÓN DEFINITIVA - Token hardcodeado
+    $expectedToken = 'chatbotwhatsapp';
+    
 
-        Log::info('Query parameters recibidos', [
-            'hub.mode' => $mode,
-            'hub.verify_token' => $token ? '***' : null, // no loguear token en claro
-            'hub.challenge' => $challenge ? 'present' : null
-        ]);
+    // Verificar parámetros requeridos
+    if (empty($mode) || empty($token) || empty($challenge)) {
+        \Log::error('❌ Faltan parámetros requeridos');
+        return response('Bad Request - Missing parameters', 400);
+    }
 
-        // Token esperado desde .env
-        $expectedToken = env('WHATSAPP_VERIFY_TOKEN', 'chatbotwhatsapp');
+    // Verificar el modo
+    if ($mode !== 'subscribe') {
+        \Log::warning("❌ Modo incorrecto. Esperado: 'subscribe', Recibido: '{$mode}'");
+        return response('Forbidden - Invalid mode', 403);
+    }
 
-        // Validaciones
-        if (empty($mode) || empty($token) || empty($challenge)) {
-            Log::error('❌ Faltan parámetros requeridos para verificación');
-            return response('Bad Request - Missing parameters', 400);
-        }
+    // Verificación case-insensitive por si hay problemas de mayúsculas/minúsculas
+    $normalizedReceived = strtolower(trim($token));
+    $normalizedExpected = strtolower(trim($expectedToken));
+    
+    \Log::info("🔍 COMPARACIÓN NORMALIZADA - Recibido: '{$normalizedReceived}', Esperado: '{$normalizedExpected}'");
 
-        if (strtolower(trim($mode)) !== 'subscribe') {
-            Log::warning("❌ Modo incorrecto. Esperado 'subscribe', recibido: '{$mode}'");
-            return response('Forbidden - Invalid mode', 403);
-        }
-
-        // Comparación segura (case-insensitive)
-        if (strtolower(trim($token)) !== strtolower(trim($expectedToken))) {
-            Log::warning('❌ Verify token inválido (mismatch)');
-            return response('Forbidden - Token mismatch', 403);
-        }
-
-        Log::info('✅ WEBHOOK VERIFICADO EXITOSAMENTE — devolviendo challenge');
+    if ($normalizedReceived === $normalizedExpected) {
+        \Log::info('✅ WEBHOOK VERIFICADO EXITOSAMENTE!');
+        \Log::info("📤 Devolviendo challenge: {$challenge}");
         return response($challenge, 200)
             ->header('Content-Type', 'text/plain');
     }
 
-    /**
-     * POST -> Recibe eventos de WhatsApp (mensajes)
-     */
+   
+    return response('Forbidden - Token mismatch', 403);
+}
+
+    // Recibir mensajes de WhatsApp
     public function webhook(Request $request)
     {
-        Log::info('=== WHATSAPP WEBHOOK POST INICIADO ===');
-
-        // Log básico (no imprimas tokens ni datos sensibles completos en producción)
-        Log::info('Headers:', $request->headers->all());
-        Log::info('Payload recibida (resumida):', [
-            'object' => $request->input('object'),
-            'entry_count' => count($request->input('entry', []))
-        ]);
+        \Log::info('=== WEBHOOK INICIADO ===');
+        \Log::info('Headers:', $request->headers->all());
+        \Log::info('Webhook data recibida:', $request->all());
 
         $data = $request->all();
 
-        // Verificar que exista al menos un mensaje procesable
-        $hasMessage = isset($data['entry'][0]['changes'][0]['value']['messages'][0]);
+        // Verificar que es un mensaje válido
+        if (isset($data['entry'][0]['changes'][0]['value']['messages'][0])) {
+            $message = $data['entry'][0]['changes'][0]['value']['messages'][0];
+            $rawFrom = $message['from'] ?? '';
+            $normalizedPhone = preg_replace('/\D+/', '', $rawFrom); 
+            $userPhone = $normalizedPhone;
+            $messageText = $message['text']['body'] ?? '';
+            
+            \Log::info("📱 Mensaje recibido - De: {$userPhone}, Texto: {$messageText}");
+            \Log::info("📋 Detalles del mensaje:", $message);
 
-        if (! $hasMessage) {
-            Log::warning('❌ No se encontró mensaje en el webhook. Payload guardada para revisión.');
-            // Opcional: Log::info('Payload completa:', $data); // evita en prod si hay info sensible
-            return response('EVENT_RECEIVED', 200); // devolver 200 para que Meta no reintente agresivamente
+            // Procesar el mensaje
+            $this->processMessage($userPhone, $messageText);
+        } else {
+            \Log::warning('❌ No se encontró mensaje en el webhook');
+            \Log::info('Estructura completa recibida:', $data);
         }
 
-        // Dispatch al job si existe, sino ejecutar el procesamiento en caliente
-        try {
-            if (class_exists(HandleWhatsappWebhook::class)) {
-                // Dispatch to queue (recomendado)
-                HandleWhatsappWebhook::dispatch($data);
-                Log::info('📤 Job HandleWhatsappWebhook despachado a la cola.');
-            } else {
-                // Fallback síncrono (útil para pruebas rápidas sin configurar colas)
-                Log::info('⚠️ HandleWhatsappWebhook no encontrado: ejecutando procesamiento síncrono como fallback.');
-                (new \App\Jobs\HandleWhatsappWebhook($data))->handle();
-            }
-        } catch (\Throwable $e) {
-            Log::error('Error despachando / ejecutando HandleWhatsappWebhook', [
-                'message' => $e->getMessage()
-            ]);
-            // Aun así, responder 200 para evitar reintentos inmediatos de Meta
-        }
-
-        Log::info('=== WHATSAPP WEBHOOK POST FINALIZADO ===');
-        return response('EVENT_RECEIVED', 200);
+        \Log::info('=== WEBHOOK FINALIZADO ===');
+        return response('Mensaje enviado', 200);
     }
 
     private function processMessage($userPhone, $messageText)

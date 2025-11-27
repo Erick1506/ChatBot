@@ -30,16 +30,6 @@ Route::prefix('usuarios')->group(function () {
 });
 
 // =========================================================================
-// RUTAS DE CERTIFICADOS FIC
-// =========================================================================
-Route::prefix('certificados')->group(function () {
-    Route::get('{nit}', [CertificadoFICController::class, 'obtenerPorNit']);
-    Route::get('ticket/{ticket}', [CertificadoFICController::class, 'obtenerPorTicket']);
-    Route::get('vigencia/{nit}/{year}', [CertificadoFICController::class, 'obtenerPorVigencia']);
-    Route::post('generar-pdf', [CertificadoFICController::class, 'generarPDF']);
-});
-
-// =========================================================================
 // RUTAS DE HEALTH CHECK PARA RENDER (Sin autenticación)
 // =========================================================================
 
@@ -54,25 +44,6 @@ Route::get('/health', function () {
     ]);
 });
 
-// Ruta de prueba con más detalles del sistema
-Route::get('/test', function () {
-    return response()->json([
-        'message' => '✅ API Laravel WhatsApp Bot funcionando correctamente',
-        'timestamp' => now()->toISOString(),
-        'system' => [
-            'php_version' => PHP_VERSION,
-            'laravel_version' => app()->version(),
-            'server' => $_SERVER['SERVER_SOFTWARE'] ?? 'Unknown',
-            'timezone' => config('app.timezone'),
-        ],
-        'endpoints' => [
-            'webhook_whatsapp' => '/api/whatsapp/webhook',
-            'health_check' => '/api/health',
-            'validar_usuario' => '/api/usuarios/validar',
-            'certificados' => '/api/certificados/{nit}'
-        ]
-    ]);
-});
 
 // Ruta para verificar la configuración de WhatsApp
 Route::get('/whatsapp/config', function () {
