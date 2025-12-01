@@ -646,7 +646,7 @@ class WhatsAppController extends Controller
     }
 
     // Enviar menú interactivo (reply buttons) v24
-    private function sendMenuInteractive(string $userPhone)
+    private function sendMenu(string $userPhone)
     {
         Log::info("📋 Enviando MENU interactivo a {$userPhone}");
 
@@ -859,19 +859,6 @@ class WhatsAppController extends Controller
     // -------------------- MENÚ y Mensajes predefinidos --------------------
 
     // Versión textual de fallback del menú (solo como fallback)
-    private function sendMenu($userPhone, $compact = false)
-    {
-        Log::info("📋 Enviando MENU texto a {$userPhone}, compact={$compact}");
-        $msg = "📌 *MENÚ PRINCIPAL - Chatbot FIC*\n\n";
-        $msg .= "Selecciona una opción escribiendo su nombre o número:\n\n";
-        $msg .= "• *1* - Generar Certificado (o escribe *Generar Certificado*)\n";
-        $msg .= "• *2* - Requisitos (o escribe *Requisitos*)\n";
-        $msg .= "• *3* - Soporte (o escribe *Soporte*)\n";
-        $msg .= "• *4* - Registro (o escribe *Registro*)\n\n";
-        $msg .= "Ejemplo: Escribe *Generar Certificado* para iniciar.";
-        $this->sendMessage($userPhone, $msg);
-    }
-
     private function sendCertificateOptions($userPhone)
     {
         Log::info("📄 Enviando opciones de certificado a {$userPhone}");
