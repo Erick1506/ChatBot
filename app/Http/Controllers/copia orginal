@@ -25,19 +25,22 @@ class WhatsAppController extends Controller
         $token = $request->query('hub.verify_token');
         $challenge = $request->query('hub.challenge');
 
-        // Token (mejor en .env)
+        // SOLUCIÓN DEFINITIVA - Token hardcodeado (mejor si lo pones en env en producción)
         $expectedToken = env('WHATSAPP_VERIFY_TOKEN', 'chatbotwhatsapp');
 
+        // Verificar parámetros requeridos
         if (empty($mode) || empty($token) || empty($challenge)) {
             Log::error('❌ Faltan parámetros requeridos en verificación de webhook', $request->query());
             return response('Bad Request - Missing parameters', 400);
         }
 
+        // Verificar el modo
         if ($mode !== 'subscribe') {
             Log::warning("❌ Modo incorrecto. Esperado: 'subscribe', Recibido: '{$mode}'");
             return response('Forbidden - Invalid mode', 403);
         }
 
+        // Verificación case-insensitive
         $normalizedReceived = strtolower(trim($token));
         $normalizedExpected = strtolower(trim($expectedToken));
 
@@ -59,60 +62,65 @@ class WhatsAppController extends Controller
     {
         Log::info('=== WEBHOOK INICIADO ===');
         Log::info('Headers:', $request->headers->all());
-
-        // Raw body (útil para diagnosticar problemas en Render)
+        
+        // 🔥 CAMBIO CRÍTICO: Obtener el contenido RAW del request
         $rawBody = $request->getContent();
         Log::info('📨 Raw body recibido: ' . $rawBody);
-
+        
+        // Intentar decodificar el JSON manualmente
         $data = json_decode($rawBody, true);
-
+        
+        // Si hay error en el JSON, loguear y salir
         if (json_last_error() !== JSON_ERROR_NONE) {
             Log::error('❌ Error decodificando JSON: ' . json_last_error_msg());
             Log::info('=== WEBHOOK FINALIZADO (ERROR JSON) ===');
             return response('Error en JSON', 400);
         }
-
+        
+        // Si json_decode falló, intentar con $request->all()
         if (empty($data)) {
             Log::warning('⚠️ JSON decode vacío, intentando con $request->all()');
             $data = $request->all();
         }
-
+        
         Log::info('Webhook data recibida:', $data);
 
-        // identificar mensaje en diferentes estructuras
+        // Verificar que es un mensaje válido (múltiples estructuras posibles)
         $message = null;
         $userPhone = null;
         $messageText = null;
-
+        
+        // Estructura 1: La que espera tu código original
         if (isset($data['entry'][0]['changes'][0]['value']['messages'][0])) {
             $message = $data['entry'][0]['changes'][0]['value']['messages'][0];
             Log::info('✅ Mensaje encontrado en estructura estándar');
-        } elseif (isset($data['entry'][0]['changes'][0]['value']['message'])) {
+        }
+        // Estructura 2: Alternativa que podría venir de Meta
+        elseif (isset($data['entry'][0]['changes'][0]['value']['message'])) {
             $message = $data['entry'][0]['changes'][0]['value']['message'];
             Log::info('✅ Mensaje encontrado en estructura alternativa (message)');
-        } elseif (isset($data['entry'][0]['messaging'][0]['message'])) {
+        }
+        // Estructura 3: Otra variante común
+        elseif (isset($data['entry'][0]['messaging'][0]['message'])) {
             $message = $data['entry'][0]['messaging'][0]['message'];
             Log::info('✅ Mensaje encontrado en estructura messaging');
-        } elseif (isset($data['messages'][0])) {
-            // algunos webhooks de prueba o ejemplos traen directamente messages
-            $message = $data['messages'][0];
-            Log::info('✅ Mensaje encontrado en raíz messages');
         }
 
         if ($message) {
-            $rawFrom = $message['from'] ?? $message['wa_id'] ?? '';
+            $rawFrom = $message['from'] ?? '';
             $normalizedPhone = preg_replace('/\D+/', '', $rawFrom);
             $userPhone = $normalizedPhone;
-            $messageText = $message['text']['body'] ?? $message['body'] ?? ($message['text'] ?? '');
+            $messageText = $message['text']['body'] ?? ($message['body'] ?? '');
 
             Log::info("📱 Mensaje recibido - De: {$userPhone}, Texto: {$messageText}");
             Log::info("📋 Detalles del mensaje:", $message);
 
+            // Solo procesar si tenemos un número y mensaje válidos
             if (!empty($userPhone) && !empty($messageText)) {
-                // registrar recepción: actualizamos last interaction en recepción
+                // Registrar recepción: actualizamos last interaction en recepción
                 $this->setLastInteraction($userPhone, now());
 
-                // ¿Primera vez o >24h? enviamos plantilla "welcome_short"
+                // Si es la primera vez o pasaron >=24 horas, enviar plantilla (Utility) antes de procesar
                 $last = $this->getLastInteraction($userPhone);
                 $needTemplate = false;
                 if (!$last) {
@@ -125,24 +133,22 @@ class WhatsAppController extends Controller
                 $sentTemplate = false;
                 if ($needTemplate) {
                     Log::info("🔔 Enviando plantilla de bienvenida (first/timeout) a {$userPhone}");
-                    if ($this->sendTemplate($userPhone, 'welcome_short')) {
+                    if ($this->sendTemplate($userPhone, 'welcome_menu')) {
                         $sentTemplate = true;
-                        Log::info("✅ Plantilla welcome_short enviada correctamente a {$userPhone}");
-                    } else {
-                        Log::warning("❌ No se pudo enviar plantilla welcome_short a {$userPhone}");
                     }
                 }
 
-                // procesar mensaje (si enviamos plantilla, suprimimos el welcome interno)
+                // Procesar el mensaje — si enviamos plantilla, suprimir el envío de bienvenida duplicada
                 $this->processMessage($userPhone, $messageText, $sentTemplate);
             } else {
                 Log::warning('❌ Número de teléfono o mensaje vacío');
             }
+
         } else {
             Log::warning('❌ No se encontró mensaje en el webhook');
             Log::info('Estructura completa recibida:', $data);
-
-            // info útil para debug
+            
+            // Debug: mostrar las claves disponibles para diagnóstico
             Log::info('🔍 Claves disponibles en data:', array_keys($data));
             if (isset($data['entry'][0])) {
                 Log::info('🔍 Estructura de entry[0]:', $data['entry'][0]);
@@ -236,7 +242,7 @@ class WhatsAppController extends Controller
             return;
         }
 
-        if (str_contains($messageLower, 'registro') || str_contains($messageLower, 'registrarse') || str_contains($messageLower, 'información de usuario') || str_contains($messageLower, 'informacion de usuario')) {
+        if (str_contains($messageLower, 'registro') || str_contains($messageLower, 'registrarse')) {
             Log::info("🤖 Usuario solicitó información de registro");
             $this->sendRegistrationInfo($userPhone);
             return;
@@ -659,17 +665,18 @@ class WhatsAppController extends Controller
         Log::info("✉️ ENVIANDO MENSAJE - Para: {$to}");
         Log::info("📝 Mensaje: {$message}");
 
-        $phoneNumberId = config('services.whatsapp.phone_number_id') ?? env('WHATSAPP_PHONE_ID');
-        $accessToken = config('services.whatsapp.access_token') ?? env('WHATSAPP_TOKEN');
+        $phoneNumberId = config('services.whatsapp.phone_number_id');
+        $accessToken = config('services.whatsapp.access_token');
 
         if (empty($phoneNumberId) || empty($accessToken)) {
-            Log::error('❌ Configuración de WhatsApp incompleta. Revisa services.whatsapp.phone_number_id y access_token / .env');
+            Log::error('❌ Configuración de WhatsApp incompleta. Revisa services.whatsapp.phone_number_id y access_token');
             return;
         }
 
-        $url = 'https://graph.facebook.com/v22.0/' . $phoneNumberId . '/messages';
+        $url = 'https://graph.facebook.com/v24.0/' . $phoneNumberId . '/messages';
         Log::info("🌐 URL: {$url}");
         Log::info("🔑 Token (partial): " . (is_string($accessToken) ? substr($accessToken, 0, 10) . "..." : 'n/a'));
+        Log::info("📞 Phone Number ID: " . $phoneNumberId);
 
         try {
             $response = Http::withToken($accessToken)
@@ -688,12 +695,12 @@ class WhatsAppController extends Controller
                 // marcar última interacción outbound
                 $this->setLastInteraction($to, now());
 
-                // Guardar outbound en BD si devuelve message id y si tienes modelo WhatsappMessage
+                // Guardar outbound en BD si devuelve message id
                 $respJson = $response->json();
                 $outMsgId = $respJson['messages'][0]['id'] ?? null;
                 try {
-                    if (class_exists(\App\Models\WhatsappMessage::class)) {
-                        \App\Models\WhatsappMessage::create([
+                    if (class_exists(WhatsappMessage::class)) {
+                        WhatsappMessage::create([
                             'message_id' => $outMsgId,
                             'from_number' => $phoneNumberId,
                             'to_phone_number_id' => $to,
@@ -720,19 +727,21 @@ class WhatsAppController extends Controller
         Log::info("📎 ENVIANDO DOCUMENTO - Para: {$to}, Archivo: {$fileName}");
         Log::info("📁 Ruta del archivo: {$filePath}");
 
-        $phoneNumberId = config('services.whatsapp.phone_number_id') ?? env('WHATSAPP_PHONE_ID');
-        $accessToken = config('services.whatsapp.access_token') ?? env('WHATSAPP_TOKEN');
+        $phoneNumberId = config('services.whatsapp.phone_number_id');
+        $accessToken = config('services.whatsapp.access_token');
 
         if (empty($phoneNumberId) || empty($accessToken)) {
-            Log::error('❌ Configuración de WhatsApp incompleta. Revisa services.whatsapp.phone_number_id y access_token / .env');
+            Log::error('❌ Configuración de WhatsApp incompleta. Revisa services.whatsapp.phone_number_id y access_token');
             return;
         }
+
+        $url = 'https://graph.facebook.com/v17.0/' . $phoneNumberId . '/messages';
 
         try {
             Log::info("⬆️ Subiendo archivo a WhatsApp...");
             $mediaResponse = Http::withToken($accessToken)
                 ->attach('file', file_get_contents($filePath), $fileName)
-                ->post('https://graph.facebook.com/v22.0/' . $phoneNumberId . '/media', [
+                ->post('https://graph.facebook.com/v17.0/' . $phoneNumberId . '/media', [
                     'messaging_product' => 'whatsapp',
                     'type' => 'document/pdf'
                 ]);
@@ -744,7 +753,6 @@ class WhatsAppController extends Controller
                 Log::info("🆔 Media ID obtenido: {$mediaId}");
 
                 Log::info("📤 Enviando documento con media ID...");
-                $url = 'https://graph.facebook.com/v22.0/' . $phoneNumberId . '/messages';
                 $sendResponse = Http::withToken($accessToken)
                     ->post($url, [
                         'messaging_product' => 'whatsapp',
@@ -764,8 +772,8 @@ class WhatsAppController extends Controller
 
                     $respJson = $sendResponse->json();
                     try {
-                        if (class_exists(\App\Models\WhatsappMessage::class)) {
-                            \App\Models\WhatsappMessage::create([
+                        if (class_exists(WhatsappMessage::class)) {
+                            WhatsappMessage::create([
                                 'message_id' => $respJson['messages'][0]['id'] ?? null,
                                 'from_number' => $phoneNumberId,
                                 'to_phone_number_id' => $to,
@@ -783,6 +791,7 @@ class WhatsAppController extends Controller
             } else {
                 Log::error("❌ No se pudo obtener media ID");
             }
+
         } catch (\Exception $e) {
             Log::error("💥 Excepción enviando documento: " . $e->getMessage());
             Log::error("📋 Stack trace: " . $e->getTraceAsString());
@@ -810,20 +819,20 @@ class WhatsAppController extends Controller
     }
 
     /**
-     * Envía una plantilla (template) usando WhatsApp Cloud API (v22).
+     * Envía una plantilla (template) usando WhatsApp Cloud API.
      * Retorna true si el envío fue exitoso (status 200/2xx).
      */
     private function sendTemplate($to, $templateName, $languageCode = 'es_CO')
     {
-        $phoneNumberId = config('services.whatsapp.phone_number_id') ?? env('WHATSAPP_PHONE_ID');
-        $accessToken = config('services.whatsapp.access_token') ?? env('WHATSAPP_TOKEN');
+        $phoneNumberId = config('services.whatsapp.phone_number_id');
+        $accessToken = config('services.whatsapp.access_token');
 
         if (empty($phoneNumberId) || empty($accessToken)) {
             Log::error('❌ Configuración de WhatsApp incompleta para sendTemplate');
             return false;
         }
 
-        $url = "https://graph.facebook.com/v22.0/{$phoneNumberId}/messages";
+        $url = "https://graph.facebook.com/v17.0/{$phoneNumberId}/messages";
 
         $body = [
             'messaging_product' => 'whatsapp',
@@ -849,10 +858,10 @@ class WhatsAppController extends Controller
 
                 // Guardar outbound en BD si tienes WhatsappMessage
                 try {
-                    if (class_exists(\App\Models\WhatsappMessage::class)) {
+                    if (class_exists(WhatsappMessage::class)) {
                         $respJson = $response->json();
                         $outMsgId = $respJson['messages'][0]['id'] ?? null;
-                        \App\Models\WhatsappMessage::create([
+                        WhatsappMessage::create([
                             'message_id' => $outMsgId,
                             'from_number' => $phoneNumberId,
                             'to_phone_number_id' => $to,
@@ -897,4 +906,5 @@ class WhatsAppController extends Controller
         cache()->forget("whatsapp_state_{$userPhone}");
         Log::info("✅ Estado limpiado");
     }
+    
 }
