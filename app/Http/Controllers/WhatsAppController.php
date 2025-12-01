@@ -73,21 +73,15 @@ class WhatsAppController extends Controller
 
         Log::info('Webhook data recibida:', $data);
 
-        // Manejar eventos de "statuses" (delivered/read/failed) primero
+        // 1) Manejar eventos de "statuses" (delivered/read/failed) primero
         if (!empty($data['entry'][0]['changes'][0]['value']['statuses'][0])) {
             $status = $data['entry'][0]['changes'][0]['value']['statuses'][0];
             Log::info('🔔 Status event recibido:', $status);
-
-            // Ejemplo: si status == failed, podrías alertar o reintentar.
-            // Aquí solo guardamos log y devolvemos 200.
-            // Puedes almacenar en DB si lo deseas:
-            // $this->handleStatusEvent($status);
-
-            Log::info('ℹ️ Evento de status procesado, no es un mensaje de usuario.');
+            // Aquí podrías guardar en DB o reaccionar según status
             return response('Status received', 200);
         }
 
-        // Buscar mensaje (varias estructuras posibles)
+        // 2) Buscar mensaje (varias estructuras posibles)
         $message = null;
         if (isset($data['entry'][0]['changes'][0]['value']['messages'][0])) {
             $message = $data['entry'][0]['changes'][0]['value']['messages'][0];
@@ -104,34 +98,59 @@ class WhatsAppController extends Controller
         }
 
         if ($message) {
-            // Normalizar origen y texto (soporta text y reply buttons)
+            // Normalizar origen y texto (soporta text y interactive)
             $rawFrom = $message['from'] ?? $message['wa_id'] ?? '';
             $userPhone = preg_replace('/\D+/', '', $rawFrom);
 
             $messageText = '';
+            $interactiveId = null;
+            $interactiveTitle = null;
+
             // Texto plano
             if (isset($message['text']['body'])) {
                 $messageText = $message['text']['body'];
             }
-            // Reply button / interactive (button_reply / list_reply)
+
+            // legacy "button" key
             elseif (!empty($message['button']) && isset($message['button']['text'])) {
                 $messageText = $message['button']['text'];
-            } elseif (!empty($message['interactive'])) {
-                // button_reply or list_reply
+            }
+
+            // interactive (reply button or list)
+            elseif (!empty($message['interactive'])) {
                 $interactive = $message['interactive'];
-                if (isset($interactive['button_reply']['title'])) {
-                    $messageText = $interactive['button_reply']['title'];
+                // button_reply (v24)
+                if (isset($interactive['button_reply']['id'])) {
+                    $interactiveId = $interactive['button_reply']['id'];
+                    $interactiveTitle = $interactive['button_reply']['title'] ?? null;
+                } elseif (isset($interactive['button_reply']['title'])) {
+                    $interactiveTitle = $interactive['button_reply']['title'];
+                }
+                // list_reply
+                if (isset($interactive['list_reply']['id'])) {
+                    $interactiveId = $interactive['list_reply']['id'];
+                    $interactiveTitle = $interactive['list_reply']['title'] ?? null;
                 } elseif (isset($interactive['list_reply']['title'])) {
-                    $messageText = $interactive['list_reply']['title'];
+                    $interactiveTitle = $interactive['list_reply']['title'];
+                }
+
+                // Preferir id para flujo (más seguro)
+                if ($interactiveId) {
+                    $messageText = $interactiveId;
+                } elseif ($interactiveTitle) {
+                    $messageText = $interactiveTitle;
+                } else {
+                    $messageText = ''; // fallback
                 }
             }
-            // fallback: raw 'body'
+
+            // fallback: 'body' directo
             elseif (isset($message['body'])) {
                 $messageText = $message['body'];
             }
 
-            Log::info("📱 Mensaje recibido - De: {$userPhone}, Texto: {$messageText}");
-            Log::info("📋 Detalles del mensaje:", $message);
+            Log::info("📱 Mensaje recibido - De: {$userPhone}, Texto(normalizado): {$messageText}");
+            Log::info("📋 Detalles del mensaje (original):", $message);
 
             if (!empty($userPhone) && $messageText !== '') {
                 // Actualizar last interaction (inbound)
@@ -150,11 +169,21 @@ class WhatsAppController extends Controller
                 $sentTemplate = false;
                 if ($needTemplate) {
                     Log::info("🔔 Enviando plantilla welcome_short a {$userPhone}");
+                    // Intentamos enviar plantilla; si falla, igualmente enviamos menu por texto
                     if ($this->sendTemplate($userPhone, 'welcome_short')) {
                         $sentTemplate = true;
+                        Log::info('✅ Plantilla enviada: welcome_short');
+                    } else {
+                        Log::warning('❌ No se pudo enviar plantilla welcome_short');
                     }
+
+                    // Después de la plantilla, enviamos el menú interactivo
+                    $this->sendMenuInteractive($userPhone);
+                    // Guardar que ya enviamos menu y plantilla para evitar saludo duplicado
+                    $this->updateUserState($userPhone, ['saw_welcome_template' => true]);
                 }
 
+                // Procesar message: si enviamos plantilla+menu, suprimir envío del welcome textual dentro de processMessage
                 $this->processMessage($userPhone, $messageText, $sentTemplate);
             } else {
                 Log::warning('❌ Número de teléfono o mensaje vacío');
@@ -223,46 +252,72 @@ class WhatsAppController extends Controller
             return;
         }
 
-        // Comandos globales / menú
-        if ($messageLower === 'menu' || str_contains($messageLower, 'inicio') || str_contains($messageLower, 'hola')) {
+        // --- Map de botones interactivos (id) a acciones ---
+        $buttonMap = [
+            'opt_generate_certificate' => 'GENERAR_CERT',
+            'opt_requirements' => 'REQUISITOS',
+            'opt_support' => 'SOPORTE',
+            'opt_registration' => 'REGISTRO'
+        ];
+
+        if (isset($buttonMap[$messageLower])) {
+            $action = $buttonMap[$messageLower];
+            Log::info("🔘 Botón interactivo presionado: {$messageLower} -> {$action}");
+            switch ($action) {
+                case 'GENERAR_CERT':
+                    $this->startAuthentication($userPhone);
+                    return;
+                case 'REQUISITOS':
+                    $this->sendRequirements($userPhone);
+                    return;
+                case 'SOPORTE':
+                    $this->sendSupportInfo($userPhone);
+                    return;
+                case 'REGISTRO':
+                    $this->sendRegistrationInfo($userPhone);
+                    return;
+            }
+        }
+
+        // Comandos globales / menú (si el usuario escribe texto o número)
+        if ($messageLower === 'menu' || $messageLower === '1' || str_contains($messageLower, 'inicio') || str_contains($messageLower, 'hola')) {
             Log::info("🤖 Comando MENU/HOLA recibido - suppressWelcome={$suppressWelcome}");
-            if (! $suppressWelcome) {
-                $this->sendMenu($userPhone);
+            // Si ya se envió la plantilla, evitamos mandar el mensaje textual adicional (para no duplicar)
+            if (! $suppressWelcome && empty($userState['saw_welcome_template'])) {
+                // Enviar plantilla ya fue gestionado en webhook; si llegamos aquí y no se envió plantilla, mandamos menú interactivo
+                $this->sendMenuInteractive($userPhone);
             } else {
-                // Si ya se envió plantilla, mandamos un menú compacto
-                $this->sendMenu($userPhone, true);
+                // Compact menu (enviar interactivo igualmente)
+                $this->sendMenuInteractive($userPhone);
             }
             $this->updateUserState($userPhone, ['step' => 'main_menu']);
             return;
         }
 
-        if (str_contains($messageLower, 'generar certificado') || $messageLower === 'generar' || str_contains($messageLower, 'certificado')) {
-            Log::info("🤖 Usuario solicitó iniciar flujo de Generar Certificado");
-            $this->startAuthentication($userPhone);
-            return;
-        }
-
-        if (str_contains($messageLower, 'requisitos')) {
-            Log::info("🤖 Usuario solicitó Requisitos");
+        if ($messageLower === '2' || str_contains($messageLower, 'requisitos')) {
             $this->sendRequirements($userPhone);
             return;
         }
 
-        if (str_contains($messageLower, 'soporte') || str_contains($messageLower, 'ayuda') || str_contains($messageLower, 'contacto')) {
-            Log::info("🤖 Usuario solicitó Soporte");
+        if ($messageLower === '3' || str_contains($messageLower, 'soporte') || str_contains($messageLower, 'ayuda') || str_contains($messageLower, 'contacto')) {
             $this->sendSupportInfo($userPhone);
             return;
         }
 
-        if (str_contains($messageLower, 'registro') || str_contains($messageLower, 'registrarse') || str_contains($messageLower, 'información de usuario') || str_contains($messageLower, 'informacion de usuario')) {
-            Log::info("🤖 Usuario solicitó información de registro");
+        if ($messageLower === '4' || str_contains($messageLower, 'registro') || str_contains($messageLower, 'registrarse')) {
             $this->sendRegistrationInfo($userPhone);
+            return;
+        }
+
+        if (str_contains($messageLower, 'generar certificado') || $messageLower === 'generar' || str_contains($messageLower, 'certificado')) {
+            $this->startAuthentication($userPhone);
             return;
         }
 
         // Si no se reconoce
         Log::info("❓ No se reconoció comando global, enviando ayuda corta");
-        $this->sendMessage($userPhone, "No entendí 🤔. Puedes escribir: *MENU* para ver las opciones, *Generar Certificado*, *Requisitos*, *Soporte* o *Registro*.");
+        // En vez de doble saludo, enviamos una ayuda corta y recordatorio de menú
+        $this->sendMessage($userPhone, "No entendí 🤔. Puedes escribir: *MENU* para ver las opciones o seleccionar una opción del menú. También puedes escribir *Generar Certificado*, *Requisitos*, *Soporte* o *Registro*.");
         Log::info("=== PROCESS MESSAGE FINALIZADO ===");
     }
 
@@ -387,6 +442,7 @@ class WhatsAppController extends Controller
 
         $this->sendMessage($userPhone, $message);
 
+        // Enviar opciones de certificado (texto) tras login
         $this->sendCertificateOptions($userPhone);
         $this->updateUserState($userPhone, [
             'step' => 'choosing_certificate_type',
@@ -473,8 +529,8 @@ class WhatsAppController extends Controller
                 break;
 
             default:
-                Log::info("🔀 Estado no reconocido, enviando mensaje de bienvenida");
-                $this->sendMenu($userPhone);
+                Log::info("🔀 Estado no reconocido, enviando menú");
+                $this->sendMenuInteractive($userPhone);
                 break;
         }
 
@@ -578,7 +634,6 @@ class WhatsAppController extends Controller
 
             if ($response->successful()) {
                 $this->setLastInteraction($to, now());
-                // Guardar outbound optional...
                 return true;
             } else {
                 Log::error("❌ sendTemplate failed: " . $response->body());
@@ -587,6 +642,80 @@ class WhatsAppController extends Controller
         } catch (\Exception $e) {
             Log::error("💥 Excepción en sendTemplate: " . $e->getMessage());
             return false;
+        }
+    }
+
+    // Enviar menú interactivo (reply buttons) v24
+    private function sendMenuInteractive(string $userPhone)
+    {
+        Log::info("📋 Enviando MENU interactivo a {$userPhone}");
+
+        $phoneNumberId = config('services.whatsapp.phone_number_id') ?? env('WHATSAPP_PHONE_ID');
+        $accessToken = config('services.whatsapp.access_token') ?? env('WHATSAPP_TOKEN');
+
+        if (empty($phoneNumberId) || empty($accessToken)) {
+            Log::error('❌ Configuración WhatsApp incompleta (sendMenuInteractive)');
+            return;
+        }
+
+        $url = "https://graph.facebook.com/v24.0/{$phoneNumberId}/messages";
+
+        $body = [
+            'messaging_product' => 'whatsapp',
+            'to' => $userPhone,
+            'type' => 'interactive',
+            'interactive' => [
+                'type' => 'button',
+                'body' => [
+                    'text' => "📌 *MENÚ PRINCIPAL - Chatbot FIC*\n\nSelecciona una opción:"
+                ],
+                'action' => [
+                    'buttons' => [
+                        [
+                            'type' => 'reply',
+                            'reply' => [
+                                'id' => 'opt_generate_certificate',
+                                'title' => '1) Generar Certificado'
+                            ]
+                        ],
+                        [
+                            'type' => 'reply',
+                            'reply' => [
+                                'id' => 'opt_requirements',
+                                'title' => '2) Requisitos'
+                            ]
+                        ],
+                        [
+                            'type' => 'reply',
+                            'reply' => [
+                                'id' => 'opt_support',
+                                'title' => '3) Soporte'
+                            ]
+                        ]
+                    ]
+                ]
+            ]
+        ];
+
+        try {
+            $resp = Http::withToken($accessToken)
+                ->timeout(15)
+                ->post($url, $body);
+
+            Log::info("📡 sendMenuInteractive status: " . $resp->status());
+            Log::info("📡 sendMenuInteractive body:", $resp->json());
+
+            if ($resp->successful()) {
+                $this->setLastInteraction($userPhone, now());
+            } else {
+                Log::error("❌ Error enviando menu interactivo: " . $resp->body());
+                // Fallback textual
+                $this->sendMenu($userPhone);
+            }
+        } catch (\Exception $e) {
+            Log::error("💥 Excepción en sendMenuInteractive: " . $e->getMessage());
+            // Fallback textual
+            $this->sendMenu($userPhone);
         }
     }
 
@@ -729,43 +858,18 @@ class WhatsAppController extends Controller
 
     // -------------------- MENÚ y Mensajes predefinidos --------------------
 
-    /**
-     * Enviar menú principal.
-     * Si $compact = true se manda una versión corta (usada cuando ya se envió plantilla)
-     */
+    // Versión textual de fallback del menú (solo como fallback)
     private function sendMenu($userPhone, $compact = false)
     {
-        Log::info("📋 Enviando MENU a {$userPhone}, compact={$compact}");
-
-        if ($compact) {
-            $msg = "Menú rápido:\n\n";
-            $msg .= "1) Generar Certificado\n";
-            $msg .= "2) Requisitos\n";
-            $msg .= "3) Soporte\n";
-            $msg .= "Escribe el nombre o el número de la opción.";
-            $this->sendMessage($userPhone, $msg);
-            return;
-        }
-
+        Log::info("📋 Enviando MENU texto a {$userPhone}, compact={$compact}");
         $msg = "📌 *MENÚ PRINCIPAL - Chatbot FIC*\n\n";
-        $msg .= "Selecciona una opción escribiendo su nombre:\n\n";
+        $msg .= "Selecciona una opción escribiendo su nombre o número:\n\n";
         $msg .= "• *1* - Generar Certificado (o escribe *Generar Certificado*)\n";
         $msg .= "• *2* - Requisitos (o escribe *Requisitos*)\n";
         $msg .= "• *3* - Soporte (o escribe *Soporte*)\n";
         $msg .= "• *4* - Registro (o escribe *Registro*)\n\n";
-        $msg .= "Ejemplo: escribe *1* o *Generar Certificado* para iniciar.";
-
+        $msg .= "Ejemplo: Escribe *Generar Certificado* para iniciar.";
         $this->sendMessage($userPhone, $msg);
-    }
-
-    private function sendWelcomeMessage($userPhone)
-    {
-        Log::info("👋 Enviando mensaje de bienvenida corto a {$userPhone}");
-        $message = "Hola 👋, gracias por escribir al Chatbot FIC - SENA.\n\n";
-        $message .= "Este asistente te ayuda a: obtener certificados, consultar requisitos y solicitar soporte técnico.\n\n";
-        $message .= "Escribe lo que necesitas o escribe \"*MENU*\" para ver las opciones.";
-
-        $this->sendMessage($userPhone, $message);
     }
 
     private function sendCertificateOptions($userPhone)
