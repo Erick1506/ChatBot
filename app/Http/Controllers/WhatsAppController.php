@@ -745,10 +745,10 @@ class WhatsAppController extends Controller
         $msg = "👋 *Hola, es un placer!*\n\n";
         $msg = "📌 *MENÚ PRINCIPAL - Chatbot FIC*\n\n";
         $msg .= "Selecciona una opción escribiendo su nombre:\n\n";
-        $msg .= "• *1* - Generar Certificado (o escribe *Generar Certificado*)\n";
-        $msg .= "• *2* - Requisitos (o escribe *Requisitos*)\n";
-        $msg .= "• *3* - Soporte (o escribe *Soporte*)\n";
-        $msg .= "• *4* - Registro (o escribe *Registro*)\n\n";
+        $msg .= "• *1* - Generar Certificado \n";
+        $msg .= "• *2* - Requisitos \n";
+        $msg .= "• *3* - Soporte \n";
+        $msg .= "• *4* - Registro \n\n";
         $msg .= "Ejemplo: Escribe *Generar Certificado* para iniciar.";
 
         $this->sendMessage($userPhone, $msg);
