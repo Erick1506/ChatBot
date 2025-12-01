@@ -7,35 +7,40 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Log;
 use App\Models\CertificadoFIC;
 use App\Models\Empresa;
+use Illuminate\Support\Facades\Log;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class WhatsAppController extends Controller
 {
-    // Verificar el webhook (Meta challenge)
+    // Verificar el webhook (requerido por Meta)
     public function verifyWebhook(Request $request)
     {
         Log::info('🔐 === WHATSAPP WEBHOOK VERIFICATION STARTED ===');
         Log::info('Query parameters:', $request->query());
 
+        // Meta typically sends hub.mode, hub.verify_token, hub.challenge
         $mode = $request->query('hub.mode');
         $token = $request->query('hub.verify_token');
         $challenge = $request->query('hub.challenge');
 
+        // SOLUCIÓN DEFINITIVA - Token hardcodeado (mejor si lo pones en env en producción)
         $expectedToken = env('WHATSAPP_VERIFY_TOKEN', 'chatbotwhatsapp');
 
+        // Verificar parámetros requeridos
         if (empty($mode) || empty($token) || empty($challenge)) {
             Log::error('❌ Faltan parámetros requeridos en verificación de webhook', $request->query());
             return response('Bad Request - Missing parameters', 400);
         }
 
+        // Verificar el modo
         if ($mode !== 'subscribe') {
             Log::warning("❌ Modo incorrecto. Esperado: 'subscribe', Recibido: '{$mode}'");
             return response('Forbidden - Invalid mode', 403);
         }
 
+        // Verificación case-insensitive
         $normalizedReceived = strtolower(trim($token));
         $normalizedExpected = strtolower(trim($expectedToken));
 
@@ -44,95 +49,120 @@ class WhatsAppController extends Controller
         if ($normalizedReceived === $normalizedExpected) {
             Log::info('✅ WEBHOOK VERIFICADO EXITOSAMENTE!');
             Log::info("📤 Devolviendo challenge: {$challenge}");
-            return response($challenge, 200)->header('Content-Type', 'text/plain');
+            return response($challenge, 200)
+                ->header('Content-Type', 'text/plain');
         }
 
         Log::warning('❌ Token de verificación incorrecto');
         return response('Forbidden - Token mismatch', 403);
     }
 
-    // Recibir mensajes de WhatsApp (v22+)
+    // Recibir mensajes de WhatsApp (mejorado: plantilla si primera vez o >24h)
     public function webhook(Request $request)
     {
         Log::info('=== WEBHOOK INICIADO ===');
-        Log::info('REMOTE_ADDR: ' . $request->ip());
-        Log::info('HEADERS: ' . json_encode($request->headers->all()));
-
+        Log::info('Headers:', $request->headers->all());
+        
+        // 🔥 CAMBIO CRÍTICO: Obtener el contenido RAW del request
         $rawBody = $request->getContent();
-        Log::info('RAW BODY: ' . $rawBody);
-
-        // Verificación de firma opcional (activa en producción)
-        $skipVerify = env('WHATSAPP_SKIP_SIGNATURE_VERIFY', false);
-        if (! $skipVerify) {
-            $signatureHeader = $request->header('x-hub-signature-256', '');
-            $appSecret = env('FACEBOOK_APP_SECRET', env('APP_SECRET'));
-            if (empty($signatureHeader) || empty($appSecret)) {
-                Log::warning('WEBHOOK: falta x-hub-signature-256 o FACEBOOK_APP_SECRET en .env');
-            } else {
-                $computed = 'sha256=' . hash_hmac('sha256', $rawBody, $appSecret);
-                if (!hash_equals($computed, $signatureHeader)) {
-                    Log::warning('WEBHOOK SIGNATURE MISMATCH', ['received' => $signatureHeader, 'computed' => $computed]);
-                    return response('Forbidden - signature mismatch', 403);
-                }
-                Log::info('WEBHOOK SIGNATURE OK');
-            }
-        } else {
-            Log::warning('WEBHOOK signature verification SKIPPED (WHATSAPP_SKIP_SIGNATURE_VERIFY=true)');
-        }
-
+        Log::info('📨 Raw body recibido: ' . $rawBody);
+        
+        // Intentar decodificar el JSON manualmente
         $data = json_decode($rawBody, true);
+        
+        // Si hay error en el JSON, loguear y salir
         if (json_last_error() !== JSON_ERROR_NONE) {
             Log::error('❌ Error decodificando JSON: ' . json_last_error_msg());
-            return response('Bad Request - invalid JSON', 400);
+            Log::info('=== WEBHOOK FINALIZADO (ERROR JSON) ===');
+            return response('Error en JSON', 400);
         }
-        Log::info('Webhook payload parsed (top keys): ' . implode(', ', array_keys($data ?? [])));
+        
+        // Si json_decode falló, intentar con $request->all()
+        if (empty($data)) {
+            Log::warning('⚠️ JSON decode vacío, intentando con $request->all()');
+            $data = $request->all();
+        }
+        
+        Log::info('Webhook data recibida:', $data);
 
-        // Responder 200 a Meta rápidamente (se devuelve al final)
-        $earlyResponse = response('EVENT RECEIVED', 200);
-
-        // Normalizar y buscar mensaje
+        // Verificar que es un mensaje válido (múltiples estructuras posibles)
         $message = null;
+        $userPhone = null;
+        $messageText = null;
+        
+        // Estructura 1: La que espera tu código original
         if (isset($data['entry'][0]['changes'][0]['value']['messages'][0])) {
             $message = $data['entry'][0]['changes'][0]['value']['messages'][0];
-            $meta = $data['entry'][0]['changes'][0]['value'];
-        } elseif (isset($data['entry'][0]['changes'][0]['value']['message'])) {
+            Log::info('✅ Mensaje encontrado en estructura estándar');
+        }
+        // Estructura 2: Alternativa que podría venir de Meta
+        elseif (isset($data['entry'][0]['changes'][0]['value']['message'])) {
             $message = $data['entry'][0]['changes'][0]['value']['message'];
-            $meta = $data['entry'][0]['changes'][0]['value'];
+            Log::info('✅ Mensaje encontrado en estructura alternativa (message)');
+        }
+        // Estructura 3: Otra variante común
+        elseif (isset($data['entry'][0]['messaging'][0]['message'])) {
+            $message = $data['entry'][0]['messaging'][0]['message'];
+            Log::info('✅ Mensaje encontrado en estructura messaging');
+        }
+
+        if ($message) {
+            $rawFrom = $message['from'] ?? '';
+            $normalizedPhone = preg_replace('/\D+/', '', $rawFrom);
+            $userPhone = $normalizedPhone;
+            $messageText = $message['text']['body'] ?? ($message['body'] ?? '');
+
+            Log::info("📱 Mensaje recibido - De: {$userPhone}, Texto: {$messageText}");
+            Log::info("📋 Detalles del mensaje:", $message);
+
+            // Solo procesar si tenemos un número y mensaje válidos
+            if (!empty($userPhone) && !empty($messageText)) {
+                // Registrar recepción: actualizamos last interaction en recepción
+                $this->setLastInteraction($userPhone, now());
+
+                // Si es la primera vez o pasaron >=24 horas, enviar plantilla (Utility) antes de procesar
+                $last = $this->getLastInteraction($userPhone);
+                $needTemplate = false;
+                if (!$last) {
+                    $needTemplate = true;
+                } else {
+                    $hours = Carbon::now()->diffInHours($last);
+                    if ($hours >= 24) $needTemplate = true;
+                }
+
+                $sentTemplate = false;
+                if ($needTemplate) {
+                    Log::info("🔔 Enviando plantilla de bienvenida (first/timeout) a {$userPhone}");
+                    if ($this->sendTemplate($userPhone, 'welcome_menu')) {
+                        $sentTemplate = true;
+                    }
+                }
+
+                // Procesar el mensaje — si enviamos plantilla, suprimir el envío de bienvenida duplicada
+                $this->processMessage($userPhone, $messageText, $sentTemplate);
+            } else {
+                Log::warning('❌ Número de teléfono o mensaje vacío');
+            }
+
         } else {
-            Log::warning('❌ No se encontró mensaje en la estructura del webhook; keys entry/changes/value/messages absent');
-            Log::info('Payload completo para diagnóstico:', $data);
-            return $earlyResponse;
-        }
-
-        $rawFrom = $message['from'] ?? ($data['entry'][0]['changes'][0]['value']['contacts'][0]['wa_id'] ?? '');
-        $normalizedPhone = preg_replace('/\D+/', '', $rawFrom);
-        $userPhone = $normalizedPhone;
-        $messageText = $message['text']['body'] ?? ($message['body'] ?? '');
-
-        Log::info("📱 Mensaje parseado - De: {$userPhone}, Texto: {$messageText}");
-
-        if (empty($userPhone) || empty($messageText)) {
-            Log::warning('Número o texto vacío. Skipping processing.');
-            return $earlyResponse;
-        }
-
-        // Registrar interacción en cache
-        $this->setLastInteraction($userPhone, now());
-
-        // Procesar mensaje (inline)
-        try {
-            $this->processMessage($userPhone, $messageText, false);
-        } catch (\Throwable $e) {
-            Log::error('Error procesando mensaje inline: ' . $e->getMessage());
-            Log::error($e->getTraceAsString());
+            Log::warning('❌ No se encontró mensaje en el webhook');
+            Log::info('Estructura completa recibida:', $data);
+            
+            // Debug: mostrar las claves disponibles para diagnóstico
+            Log::info('🔍 Claves disponibles en data:', array_keys($data));
+            if (isset($data['entry'][0])) {
+                Log::info('🔍 Estructura de entry[0]:', $data['entry'][0]);
+            }
         }
 
         Log::info('=== WEBHOOK FINALIZADO ===');
-        return $earlyResponse;
+        return response('Mensaje recibido', 200);
     }
 
-    // -------------------- Lógica de manejo de mensajes --------------------
-
+    /**
+     * Procesa mensajes entrantes y controla flujos.
+     * El tercer parámetro ($suppressWelcome) evita reenviar el menú si ya se envió la plantilla.
+     */
     private function processMessage($userPhone, $messageText, $suppressWelcome = false)
     {
         Log::info("=== PROCESS MESSAGE INICIADO ===");
@@ -142,8 +172,6 @@ class WhatsAppController extends Controller
             '16315551181',
             '16505551111',
         ];
-
-        Log::info("Normalized phone for checks: {$userPhone}");
 
         if (in_array($userPhone, $testNumbers)) {
             Log::info("🔧 Ignorando mensaje de prueba de Meta: {$userPhone}");
@@ -157,51 +185,72 @@ class WhatsAppController extends Controller
         Log::info("Estado actual del usuario:", $userState);
 
         // Auth flow
-        $authSteps = ['awaiting_username','awaiting_password'];
+        $authSteps = [
+            'awaiting_username',
+            'awaiting_password'
+        ];
         if (!empty($userState['step']) && in_array($userState['step'], $authSteps)) {
+            Log::info("Estado de autenticación detectado ({$userState['step']}) — manejando por flujo de auth");
             $this->handleAuthFlow($userPhone, $messageText, $userState);
+            Log::info("=== PROCESS MESSAGE FINALIZADO (por auth flow) ===");
             return;
         }
 
         // Certificate flow
         $certificateSteps = [
-            'choosing_certificate_type','awaiting_nit_ticket','awaiting_ticket',
-            'awaiting_nit_general','awaiting_nit_vigencia','awaiting_year'
+            'choosing_certificate_type',
+            'awaiting_nit_ticket',
+            'awaiting_ticket',
+            'awaiting_nit_general',
+            'awaiting_nit_vigencia',
+            'awaiting_year'
         ];
         if (!empty($userState['step']) && in_array($userState['step'], $certificateSteps)) {
+            Log::info("Estado activo detectado ({$userState['step']}) — manejando por flujo de certificado");
             $this->handleCertificateFlow($userPhone, $messageLower, $userState);
+            Log::info("=== PROCESS MESSAGE FINALIZADO (por flujo activo) ===");
             return;
         }
 
-        // Handlers generales
+        // Handlers generales (modificado para soportar suppressWelcome)
         if (str_contains($messageLower, 'hola') || $messageLower === 'inicio' || $messageLower === 'menu') {
-            if (! $suppressWelcome) $this->sendWelcomeMessage($userPhone);
-            else Log::info("Omitido envío de bienvenida por template previamente enviado");
+            Log::info("🤖 Enviando mensaje de bienvenida (conditional) - suppressWelcome={$suppressWelcome}");
+            if (! $suppressWelcome) {
+                $this->sendWelcomeMessage($userPhone);
+            } else {
+                Log::info("🤖 Omitido envío de mensaje de bienvenida porque ya se envió la plantilla");
+            }
             $this->updateUserState($userPhone, ['step' => 'main_menu']);
             return;
         }
 
         if (str_contains($messageLower, 'generar certificado') || $messageLower === 'generar' || str_contains($messageLower, 'certificado')) {
+            Log::info("🤖 Usuario solicitó iniciar flujo de Generar Certificado");
             $this->startAuthentication($userPhone);
             return;
         }
 
         if (str_contains($messageLower, 'requisitos')) {
+            Log::info("🤖 Usuario solicitó Requisitos");
             $this->sendRequirements($userPhone);
             return;
         }
 
         if (str_contains($messageLower, 'soporte') || str_contains($messageLower, 'ayuda') || str_contains($messageLower, 'contacto')) {
+            Log::info("🤖 Usuario solicitó Soporte");
             $this->sendSupportInfo($userPhone);
             return;
         }
 
         if (str_contains($messageLower, 'registro') || str_contains($messageLower, 'registrarse')) {
+            Log::info("🤖 Usuario solicitó información de registro");
             $this->sendRegistrationInfo($userPhone);
             return;
         }
 
+        Log::info("❓ No se reconoció comando global, enviando ayuda corta");
         $this->sendMessage($userPhone, "No entendí 🤔. Puedes escribir: *Generar Certificado*, *Requisitos*, *Soporte* o *Registro*.");
+        Log::info("=== PROCESS MESSAGE FINALIZADO ===");
     }
 
     /**
@@ -610,7 +659,7 @@ class WhatsAppController extends Controller
         $this->sendMessage($userPhone, $message);
     }
 
-    // Métodos para enviar mensajes y documentos (v22 para text, v17 para media/upload)
+    // Métodos para enviar mensajes y documentos
     private function sendMessage($to, $message)
     {
         Log::info("✉️ ENVIANDO MENSAJE - Para: {$to}");
@@ -624,9 +673,10 @@ class WhatsAppController extends Controller
             return;
         }
 
-        // Usa la versión que corresponda a tu app (v22 si tu app es v22)
-        $url = 'https://graph.facebook.com/v22.0/' . $phoneNumberId . '/messages';
+        $url = 'https://graph.facebook.com/v24.0/' . $phoneNumberId . '/messages';
         Log::info("🌐 URL: {$url}");
+        Log::info("🔑 Token (partial): " . (is_string($accessToken) ? substr($accessToken, 0, 10) . "..." : 'n/a'));
+        Log::info("📞 Phone Number ID: " . $phoneNumberId);
 
         try {
             $response = Http::withToken($accessToken)
@@ -639,14 +689,36 @@ class WhatsAppController extends Controller
 
             Log::info("📡 Respuesta HTTP Status: " . $response->status());
             Log::info("📡 Respuesta WhatsApp API:", $response->json());
+
             if ($response->successful()) {
                 Log::info("✅ Mensaje enviado exitosamente a {$to}");
+                // marcar última interacción outbound
                 $this->setLastInteraction($to, now());
+
+                // Guardar outbound en BD si devuelve message id
+                $respJson = $response->json();
+                $outMsgId = $respJson['messages'][0]['id'] ?? null;
+                try {
+                    if (class_exists(WhatsappMessage::class)) {
+                        WhatsappMessage::create([
+                            'message_id' => $outMsgId,
+                            'from_number' => $phoneNumberId,
+                            'to_phone_number_id' => $to,
+                            'direction' => 'outbound',
+                            'message' => $message,
+                            'payload' => json_encode($respJson)
+                        ]);
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning('No se pudo guardar outbound en BD: ' . $e->getMessage());
+                }
             } else {
                 Log::error("❌ Error enviando mensaje: " . $response->body());
             }
+
         } catch (\Exception $e) {
             Log::error("💥 Excepción enviando mensaje: " . $e->getMessage());
+            Log::error("📋 Stack trace: " . $e->getTraceAsString());
         }
     }
 
@@ -663,14 +735,13 @@ class WhatsAppController extends Controller
             return;
         }
 
-        $mediaUploadUrl = 'https://graph.facebook.com/v17.0/' . $phoneNumberId . '/media';
-        $sendUrl = 'https://graph.facebook.com/v17.0/' . $phoneNumberId . '/messages';
+        $url = 'https://graph.facebook.com/v17.0/' . $phoneNumberId . '/messages';
 
         try {
             Log::info("⬆️ Subiendo archivo a WhatsApp...");
             $mediaResponse = Http::withToken($accessToken)
                 ->attach('file', file_get_contents($filePath), $fileName)
-                ->post($mediaUploadUrl, [
+                ->post('https://graph.facebook.com/v17.0/' . $phoneNumberId . '/media', [
                     'messaging_product' => 'whatsapp',
                     'type' => 'document/pdf'
                 ]);
@@ -683,7 +754,7 @@ class WhatsAppController extends Controller
 
                 Log::info("📤 Enviando documento con media ID...");
                 $sendResponse = Http::withToken($accessToken)
-                    ->post($sendUrl, [
+                    ->post($url, [
                         'messaging_product' => 'whatsapp',
                         'to' => $to,
                         'type' => 'document',
@@ -696,7 +767,24 @@ class WhatsAppController extends Controller
                 Log::info("📡 Respuesta envío de documento:", $sendResponse->json());
                 if ($sendResponse->successful()) {
                     Log::info("✅ Documento enviado exitosamente");
+                    // marcar última interacción outbound
                     $this->setLastInteraction($to, now());
+
+                    $respJson = $sendResponse->json();
+                    try {
+                        if (class_exists(WhatsappMessage::class)) {
+                            WhatsappMessage::create([
+                                'message_id' => $respJson['messages'][0]['id'] ?? null,
+                                'from_number' => $phoneNumberId,
+                                'to_phone_number_id' => $to,
+                                'direction' => 'outbound',
+                                'message' => '[document] ' . $fileName,
+                                'payload' => json_encode($respJson)
+                            ]);
+                        }
+                    } catch (\Throwable $e) {
+                        Log::warning('No se pudo guardar outbound (document): ' . $e->getMessage());
+                    }
                 } else {
                     Log::error("❌ Error al enviar documento: " . $sendResponse->body());
                 }
@@ -710,9 +798,24 @@ class WhatsAppController extends Controller
         }
 
         if (file_exists($filePath)) {
-            @unlink($filePath);
+            unlink($filePath);
             Log::info("🧹 Archivo temporal eliminado: {$filePath}");
         }
+    }
+
+    // -------------------- helpers para interacción --------------------
+    private function getLastInteraction($userPhone)
+    {
+        $key = "wh_last_interaction_{$userPhone}";
+        $val = Cache::get($key);
+        if ($val) return Carbon::parse($val);
+        return null;
+    }
+
+    private function setLastInteraction($userPhone, $time)
+    {
+        $key = "wh_last_interaction_{$userPhone}";
+        Cache::put($key, Carbon::parse($time)->toISOString(), now()->addDays(30));
     }
 
     /**
@@ -750,7 +853,27 @@ class WhatsAppController extends Controller
             Log::info("📡 sendTemplate body:", $response->json());
 
             if ($response->successful()) {
+                // marcar last interaction
                 $this->setLastInteraction($to, now());
+
+                // Guardar outbound en BD si tienes WhatsappMessage
+                try {
+                    if (class_exists(WhatsappMessage::class)) {
+                        $respJson = $response->json();
+                        $outMsgId = $respJson['messages'][0]['id'] ?? null;
+                        WhatsappMessage::create([
+                            'message_id' => $outMsgId,
+                            'from_number' => $phoneNumberId,
+                            'to_phone_number_id' => $to,
+                            'direction' => 'outbound',
+                            'message' => '[template] ' . $templateName,
+                            'payload' => json_encode($respJson)
+                        ]);
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning("No se pudo guardar outbound template: " . $e->getMessage());
+                }
+
                 return true;
             } else {
                 Log::error("❌ sendTemplate failed: " . $response->body());
@@ -782,19 +905,5 @@ class WhatsAppController extends Controller
         Log::info("🧹 Limpiando estado del usuario {$userPhone}");
         cache()->forget("whatsapp_state_{$userPhone}");
         Log::info("✅ Estado limpiado");
-    }
-
-    private function getLastInteraction($userPhone)
-    {
-        $key = "wh_last_interaction_{$userPhone}";
-        $val = Cache::get($key);
-        if ($val) return Carbon::parse($val);
-        return null;
-    }
-
-    private function setLastInteraction($userPhone, $time)
-    {
-        $key = "wh_last_interaction_{$userPhone}";
-        Cache::put($key, Carbon::parse($time)->toISOString(), now()->addDays(30));
     }
 }
