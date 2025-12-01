@@ -1,0 +1,20 @@
+{
+  "entry": [
+    {
+      "changes": [
+        {
+          "value": {
+            "messages": [
+              {
+                "from": "573014368807",
+                "text": {
+                  "body": "hola desde curl"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

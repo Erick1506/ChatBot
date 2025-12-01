@@ -605,6 +605,7 @@ class WhatsAppController extends Controller
         $this->sendMessage($userPhone, $message);
     }
 
+    
     private function sendCertificateOptions($userPhone)
     {
         Log::info("📄 Enviando opciones de certificado a {$userPhone}");
