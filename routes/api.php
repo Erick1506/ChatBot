@@ -45,14 +45,3 @@ Route::get('/health', function () {
 });
 
 
-// Ruta para verificar la configuración de WhatsApp
-Route::get('/whatsapp/config', function () {
-    return response()->json([
-        'whatsapp_configured' => !empty(config('services.whatsapp.access_token')),
-        'phone_number_id' => config('services.whatsapp.phone_number_id'),
-        'verify_token' => config('services.whatsapp.verify_token'),
-        'has_access_token' => !empty(config('services.whatsapp.access_token'))
-    ]);
-});
-
-
