@@ -10,12 +10,16 @@ use Illuminate\Support\Facades\Log;
 
 class HandleAuthFlowAction
 {
+    private AuthService $authService;
+    
     public function __construct(
         private MessageService $messageService,
         private StateService $stateService,
-        private TemplateService $templateService,
-        private AuthService $authService
-    ) {}
+        private TemplateService $templateService
+    ) {
+        // Crear AuthService manualmente
+        $this->authService = new AuthService();
+    }
 
     public function startAuthentication(string $userPhone): void
     {

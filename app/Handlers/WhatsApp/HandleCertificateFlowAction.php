@@ -10,12 +10,16 @@ use Illuminate\Support\Facades\Log;
 
 class HandleCertificateFlowAction
 {
+    private CertificateService $certificateService;
+    
     public function __construct(
         private MessageService $messageService,
         private StateService $stateService,
-        private TemplateService $templateService,
-        private CertificateService $certificateService
-    ) {}
+        private TemplateService $templateService
+    ) {
+        // Crear CertificateService manualmente
+        $this->certificateService = new CertificateService();
+    }
 
     public function execute(string $userPhone, string $messageText, array $userState): void
     {

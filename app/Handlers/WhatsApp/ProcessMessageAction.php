@@ -10,14 +10,30 @@ use Illuminate\Support\Facades\Log;
 
 class ProcessMessageAction
 {
+    private HandleAuthFlowAction $handleAuthFlowAction;
+    private HandleCertificateFlowAction $handleCertificateFlowAction;
+    
     public function __construct(
         private MessageService $messageService,
         private StateService $stateService,
         private TemplateService $templateService,
-        private UserFlowService $userFlowService,
-        private HandleAuthFlowAction $handleAuthFlowAction,
-        private HandleCertificateFlowAction $handleCertificateFlowAction
-    ) {}
+        private UserFlowService $userFlowService
+    ) {
+        // Crear manualmente los Actions dependientes usando app()
+        $this->handleAuthFlowAction = new HandleAuthFlowAction(
+            $this->messageService,
+            $this->stateService,
+            $this->templateService,
+            app()->make(\App\Services\WhatsApp\AuthService::class)  // Usar app() helper
+        );
+        
+        $this->handleCertificateFlowAction = new HandleCertificateFlowAction(
+            $this->messageService,
+            $this->stateService,
+            $this->templateService,
+            app()->make(\App\Services\WhatsApp\CertificateService::class)  // Usar app() helper
+        );
+    }
 
     public function execute(array $messageData): void
     {
