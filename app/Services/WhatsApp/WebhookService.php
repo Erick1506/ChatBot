@@ -1,0 +1,140 @@
+<?php
+
+namespace App\Services\WhatsApp;
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use App\Actions\WhatsApp\ProcessMessageAction;
+
+class WebhookService
+{
+    public function __construct(
+        private ProcessMessageAction $processMessageAction
+    ) {}
+
+    public function verify(Request $request)
+    {
+        Log::info('🔐 === WHATSAPP WEBHOOK VERIFICATION STARTED ===');
+        Log::info('Raw query string: ' . $request->getQueryString());
+
+        $mode = $request->query('hub_mode') ?? $request->query('hub.mode') ?? $request->get('hub.mode');
+        $token = $request->query('hub_verify_token') ?? $request->query('hub.verify_token') ?? $request->get('hub.verify_token');
+        $challenge = $request->query('hub_challenge') ?? $request->query('hub.challenge') ?? $request->get('hub.challenge');
+
+        $expectedToken = env('WHATSAPP_VERIFY_TOKEN', 'chatbotwhatsapp');
+
+        Log::info("Parsed verify values: mode=" . var_export($mode, true) .
+                  ", token=" . var_export($token, true) .
+                  ", challenge=" . var_export($challenge, true));
+
+        if (! $mode || ! $token || ! $challenge) {
+            Log::error('❌ Faltan parámetros requeridos en verificación de webhook', $request->query());
+            return response('Bad Request - Missing parameters', 400);
+        }
+
+        if ($mode !== 'subscribe') {
+            Log::warning("❌ Modo incorrecto. Esperado: 'subscribe', Recibido: '{$mode}'");
+            return response('Forbidden - Invalid mode', 403);
+        }
+
+        if (strcasecmp(trim($token), trim($expectedToken)) !== 0) {
+            Log::warning('❌ Token de verificación incorrecto', ['received' => $token, 'expected' => $expectedToken]);
+            return response('Forbidden - Token mismatch', 403);
+        }
+
+        Log::info('✅ WEBHOOK VERIFICADO EXITOSAMENTE! Devolviendo challenge: ' . $challenge);
+        return response($challenge, 200)->header('Content-Type', 'text/plain');
+    }
+
+    public function handle(Request $request)
+    {
+        Log::info('=== WEBHOOK INICIADO ===');
+
+        $rawBody = $request->getContent();
+        Log::info('📨 Raw body recibido: ' . $rawBody);
+
+        $data = json_decode($rawBody, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            Log::error('❌ Error decodificando JSON: ' . json_last_error_msg());
+            $data = $request->all();
+            if (empty($data)) {
+                Log::info('=== WEBHOOK FINALIZADO (ERROR JSON) ===');
+                return response('Error en JSON', 400);
+            }
+        }
+
+        Log::info('Webhook data recibida:', $data);
+
+        // Manejar eventos de "statuses"
+        if (!empty($data['entry'][0]['changes'][0]['value']['statuses'][0])) {
+            $status = $data['entry'][0]['changes'][0]['value']['statuses'][0];
+            Log::info('🔔 Status event recibido:', $status);
+            return response('Status received', 200);
+        }
+
+        // Extraer mensaje
+        $messageData = $this->extractMessageData($data);
+        if (!$messageData) {
+            Log::warning('❌ No se encontró mensaje en el webhook');
+            return response('No message found', 200);
+        }
+
+        // Procesar mensaje
+        $this->processMessageAction->execute($messageData);
+
+        return response('Mensaje recibido', 200);
+    }
+
+    private function extractMessageData(array $data): ?array
+    {
+        $message = null;
+        if (isset($data['entry'][0]['changes'][0]['value']['messages'][0])) {
+            $message = $data['entry'][0]['changes'][0]['value']['messages'][0];
+            Log::info('✅ Mensaje encontrado en estructura estándar');
+        } elseif (isset($data['entry'][0]['changes'][0]['value']['message'])) {
+            $message = $data['entry'][0]['changes'][0]['value']['message'];
+            Log::info('✅ Mensaje encontrado en estructura alternativa (message)');
+        } elseif (isset($data['entry'][0]['messaging'][0]['message'])) {
+            $message = $data['entry'][0]['messaging'][0]['message'];
+            Log::info('✅ Mensaje encontrado en estructura messaging');
+        } elseif (isset($data['messages'][0])) {
+            $message = $data['messages'][0];
+            Log::info('✅ Mensaje encontrado en raíz messages');
+        }
+
+        if (!$message) {
+            return null;
+        }
+
+        $rawFrom = $message['from'] ?? $message['wa_id'] ?? '';
+        $userPhone = preg_replace('/\D+/', '', $rawFrom);
+
+        $messageText = '';
+        if (isset($message['text']['body'])) {
+            $messageText = $message['text']['body'];
+        } elseif (!empty($message['button']) && isset($message['button']['text'])) {
+            $messageText = $message['button']['text'];
+        } elseif (!empty($message['interactive'])) {
+            $interactive = $message['interactive'];
+            if (isset($interactive['button_reply']['title'])) {
+                $messageText = $interactive['button_reply']['title'];
+            } elseif (isset($interactive['list_reply']['title'])) {
+                $messageText = $interactive['list_reply']['title'];
+            }
+        } elseif (isset($message['body'])) {
+            $messageText = $message['body'];
+        }
+
+        Log::info("📱 Mensaje recibido - De: {$userPhone}, Texto: {$messageText}");
+
+        if (empty($userPhone) || $messageText === '') {
+            return null;
+        }
+
+        return [
+            'userPhone' => $userPhone,
+            'messageText' => $messageText,
+            'messageData' => $message
+        ];
+    }
+}
