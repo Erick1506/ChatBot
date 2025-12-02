@@ -8,19 +8,22 @@
         body { 
             font-family: 'Arial', sans-serif;
             margin: 0;
-            padding: 50px 60px;
+            padding: 60px 70px 100px; /* Más padding abajo para el footer */
             font-size: 11pt;
             line-height: 1.2;
             color: #000000;
+            position: relative;
+            min-height: 29.7cm; /* Altura aproximada A4 */
         }
         
-        /* Contenedor principal para simular página A4 */
+        /* Contenedor principal */
         .page-container {
             max-width: 21cm;
             margin: 0 auto;
+            position: relative;
         }
         
-        /* Encabezado con logo - basado en segunda plantilla */
+        /* Encabezado con logo */
         .header {
             text-align: center;
             margin-bottom: 40px;
@@ -113,22 +116,24 @@
             padding: 10px 5px;
         }
         
-        /* Fecha de expedición */
+        /* Fecha de expedición - CENTRADA como en la imagen */
         .fecha-expedicion {
             margin: 30px 0;
-            text-align: right;
+            text-align: center;
             font-size: 11pt;
         }
         
-        /* Texto de advertencia */
-        .advertencia-box {
-            margin: 30px 0;
-            padding: 20px;
-            border: 1px solid #000;
+        /* Texto de advertencia - SIN CUADRO, centrado como en la imagen */
+        .advertencia-texto {
+            margin: 25px 0;
             font-size: 10pt;
             text-align: center;
             font-weight: bold;
-            background-color: #f9f9f9;
+        }
+        
+        .advertencia-linea {
+            display: block;
+            margin: 2px 0;
         }
         
         /* Sección de no validez */
@@ -140,24 +145,33 @@
             text-transform: uppercase;
         }
         
-        /* Información adicional */
+        /* Información adicional - ALINEADO A LA IZQUIERDA como en la imagen */
         .info-section {
             margin: 25px 0;
             font-size: 10pt;
-            text-align: justify;
+            text-align: left;
         }
         
         .info-section p {
             margin: 8px 0;
         }
         
-        /* Código de verificación */
+        /* Expedido por - CENTRADO Y EN NEGRITA como en la imagen */
+        .expedido-por {
+            font-weight: bold;
+            text-align: center;
+            margin: 25px 0;
+            font-size: 11pt;
+        }
+        
+        /* Código de verificación - MANTENER BORDE como en las plantillas originales */
         .verificacion-box {
-            margin: 30px 0;
+            margin: 30px 0 50px 0;
             padding: 20px;
             border: 1px solid #000;
             background-color: #ffffff;
             font-size: 10pt;
+            text-align: left;
         }
         
         .verificacion-title {
@@ -174,6 +188,39 @@
         .codigos {
             margin-top: 15px;
             font-weight: bold;
+        }
+        
+        /* FOOTER - Basado en la imagen proporcionada */
+        .footer {
+            position: absolute;
+            bottom: 40px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 9pt;
+            color: #000;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            margin-top: 50px;
+        }
+        
+        .footer-social {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .footer-website {
+            color: #0054a6;
+            font-weight: bold;
+        }
+        
+        /* Número de página en cada hoja */
+        .page-number {
+            position: absolute;
+            bottom: 20px;
+            right: 70px;
+            font-size: 9pt;
+            color: #666;
         }
         
         /* Utilidades */
@@ -210,21 +257,38 @@
             margin-top: 20px;
         }
         
-        /* Marcadores para datos (como en plantillas) */
-        .data-field {
-            border-bottom: 1px solid #000;
-            display: inline-block;
-            min-width: 100px;
-            text-align: center;
+        /* Para manejar múltiples páginas si es necesario */
+        .page-break {
+            page-break-after: always;
+        }
+        
+        /* Estilos para impresión */
+        @media print {
+            body {
+                padding: 50px 60px 80px;
+            }
+            
+            .footer {
+                position: fixed;
+                bottom: 20px;
+                left: 60px;
+                right: 60px;
+            }
+            
+            .page-number {
+                position: fixed;
+                bottom: 20px;
+                right: 60px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="page-container">
-        <!-- Encabezado con logo (como en segunda plantilla) -->
+        <!-- Encabezado con logo -->
         <div class="header">
             <div class="logo-line">
-                <!-- Logo del SENA - ajusta la ruta según corresponda -->
+                <!-- Logo del SENA -->
                 <img src="https://www.sena.edu.co/Style%20Library/alayout/images/logoSena.png?rev=40" alt="Logo SENA" class="logo">
                 <div class="institucion">Servicio Nacional de Aprendizaje SENA</div>
             </div>
@@ -279,7 +343,7 @@
             </table>
         </div>
         
-        <!-- Fecha de expedición -->
+        <!-- Fecha de expedición - CENTRADA -->
         <div class="fecha-expedicion">
             Expedido por el SENA, a los <span class="negrita">{{ $fecha_emision->day }}</span> 
             (<span class="negrita">{{ $fecha_emision->day }}</span>) días del mes de 
@@ -287,26 +351,36 @@
             <span class="negrita">{{ $fecha_emision->year }}</span>
         </div>
         
-        <!-- Texto de advertencia -->
-        <div class="advertencia-box">
-            "LA EXPEDICIÓN DE ESTA CERTIFICACIÓN, NO IMPIDE QUE EL SENA VERIFIQUE LA BASE DE LIQUIDACIÓN DE FIC Y QUE CONSTATE EL CUMPLIMIENTO EN FONDO NACIONAL DE FORMACIÓN PROFESIONAL DE LA INDUSTRIA DE LA CONSTRUCCIÓN FIC."
+        <!-- Texto de advertencia - SIN CUADRO, dividido en líneas -->
+        <div class="advertencia-texto">
+            <span class="advertencia-linea">"LA EXPEDICIÓN DE ESTA CERTIFICACIÓN, NO IMPIDE QUE EL SENA VERIFIQUE</span>
+            <span class="advertencia-linea">LA BASE DE LIQUIDACIÓN DE FIC Y QUE CONSTATE EL CUMPLIMIENTO EN</span>
+            <span class="advertencia-linea">FONDO NACIONAL DE FORMACIÓN PROFESIONAL DE LA INDUSTRIA DE LA</span>
+            <span class="advertencia-linea">CONSTRUCCIÓN FIC."</span>
         </div>
         
         <!-- Sección de no validez -->
         <div class="no-validez">NO TIENE VALIDEZ PARA FINES TRIBUTARIOS</div>
         
-        <!-- Información adicional -->
+        <!-- Información adicional - ALINEADO A LA IZQUIERDA -->
         <div class="info-section">
             <p>Este documento no tiene validez en procesos de selección contractual con entidades del estado.</p>
             
-            <p>La expedición de esta certificación no impide que el SENA verifique la base de liquidación de aportes y que constate el cumplimiento en Contrato de Aprendizaje.</p>
-            
-            <p class="spacing-1">Expedido por el Servicio Nacional de Aprendizaje – <span class="negrita">{{ $constructor->regional_sena }}</span></p>
-            
+            <p>La expedición de esta certificación no impide que el SENA verifique la base de liquidación de
+            aportes y que constate el cumplimiento en Contrato de Aprendizaje.</p>
+        </div>
+        
+        <!-- Expedido por - CENTRADO Y EN NEGRITA -->
+        <div class="expedido-por">
+            Expedido por el Servicio Nacional de Aprendizaje – <span class="negrita">{{ $constructor->regional_sena }}</span>
+        </div>
+        
+        <!-- Generado por - CENTRADO -->
+        <div class="text-center spacing-1">
             <p>Generado por: <span class="negrita">{{ $constructor->generado_por }}</span></p>
         </div>
         
-        <!-- Código de verificación -->
+        <!-- Código de verificación - MANTENER BORDE como en plantillas originales -->
         <div class="verificacion-box">
             <div class="verificacion-title">¿Desea saber si este certificado es auténtico?, por favor ingrese a la página web:</div>
             
@@ -319,6 +393,15 @@
                 <p>y el Número de Certificado: <span class="negrita">{{ $certificados->first()->numero_certificado }}</span></p>
             </div>
         </div>
+        
+        <!-- Footer fijo en cada página -->
+        <div class="footer">
+            <div class="footer-social">@SENAComunica</div>
+            <div class="footer-website">www.sena.edu.co</div>
+        </div>
+        
+        <!-- Número de página (en cada hoja) -->
+        <div class="page-number">Pág. 1</div>
     </div>
 </body>
 </html>
