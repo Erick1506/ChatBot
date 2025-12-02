@@ -6,7 +6,7 @@ class TemplateService
 {
     public function getMenu(bool $compact = false): string
     {
-        $msg = "📌 *MENÚ PRINCIPAL - Chatbot FIC*\n\n";
+        $msg = "🤖 *MENÚ PRINCIPAL - Chatbot FIC*\n\n";
         $msg .= "Selecciona una opción escribiendo su nombre:\n\n";
         $msg .= "• *1* - Generar Certificado \n";
         $msg .= "• *2* - Requisitos \n";
@@ -20,9 +20,9 @@ class TemplateService
     public function getRequirements(): string
     {
         return "📋 *REQUISITOS PARA CERTIFICADOS FIC*\n\n" .
-               "• NIT o Cédula del empresario\n" .
-               "• Tipo de certificado (Ticket, NIT o Vigencia)\n" .
-               "• Para vigencia: año específico (máx. 15 años atrás)\n\n" .
+               "• *NIT o Cédula del empresario*\n" .
+               "• *Tipo de certificado* (Ticket, NIT o Vigencia)\n" .
+               "• *Para vigencia*: año específico (máx. 15 años atrás)\n\n" .
                "Escribe *MENU* para volver al inicio.";
     }
 
