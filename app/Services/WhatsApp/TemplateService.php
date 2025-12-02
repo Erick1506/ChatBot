@@ -6,16 +6,6 @@ class TemplateService
 {
     public function getMenu(bool $compact = false): string
     {
-        if ($compact) {
-            return "📌 *MENÚ COMPACTO - Chatbot FIC*\n\n" .
-                   "Escribe lo que necesitas:\n\n" .
-                   "• *Generar Certificado*\n" .
-                   "• *Requisitos*\n" .
-                   "• *Soporte*\n" .
-                   "• *Registro*\n\n" .
-                   "O escribe *MENU* para ver el menú completo.";
-        }
-
         $msg = "📌 *MENÚ PRINCIPAL - Chatbot FIC*\n\n";
         $msg .= "Selecciona una opción escribiendo su nombre:\n\n";
         $msg .= "• *1* - Generar Certificado \n";
@@ -25,13 +15,6 @@ class TemplateService
         $msg .= "Ejemplo: Escribe *Generar Certificado* para iniciar.";
 
         return $msg;
-    }
-
-    public function getWelcome(): string
-    {
-        return "Hola 👋, gracias por escribir al Chatbot FIC - SENA.\n\n" .
-               "Este asistente te ayuda a: obtener certificados, consultar requisitos y solicitar soporte técnico.\n\n" .
-               "Escribe lo que necesitas o escribe \"*MENU*\" para ver las opciones.";
     }
 
     public function getRequirements(): string
