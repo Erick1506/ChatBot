@@ -31,7 +31,7 @@
             padding: 1.5cm 2cm 1.5cm 2cm; /* Reducido padding superior e inferior */
             position: relative;
             overflow: hidden;
-            width: 100%;
+            width: 70%;
         }
         
         /* LOGO - MÁS PEQUEÑO */
