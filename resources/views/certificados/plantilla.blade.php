@@ -15,57 +15,51 @@
             font-family: 'Arial', sans-serif;
             font-size: 11px;
             color: #000000;
-            background-color: #fff;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            min-height: 100vh;
+            background-color: #ffffff;
             width: 100%;
-            padding: 20px 0;
+            padding: 0;
+            margin: 0;
         }
         
         /* CONTENEDOR PRINCIPAL (HOJA A4) */
         .page-container {
             width: 21cm;
             min-height: 29.7cm;
+            max-height: 29.7cm; /* Evita que crezca más de una página */
             background: white;
             margin: 0 auto;
-            padding: 40px 50px;
+            padding: 2cm 2cm 1.5cm 2cm; /* Márgenes estándar para impresión */
             position: relative;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            overflow: hidden; /* Previene contenido desbordado */
         }
         
         /* LOGO - CENTRADO Y AJUSTADO */
         .logo-container {
             text-align: center;
-            margin: 0 auto 15px auto;
+            margin: 0 auto 10px auto;
             width: 100%;
         }
         
         .logo {
-            height: 100px;
+            height: 80px;
             width: auto;
-            max-width: 120px;
             margin-bottom: 5px;
         }
         
         /* ENCABEZADO */
         .header {
             text-align: center;
-            margin-bottom: 20px;
-            padding-top: 0;
+            margin-bottom: 15px;
         }
         
         .institucion {
             font-size: 16px;
-            font-family: 'Arial', sans-serif;
-            line-height: 1.3;
-            margin-bottom: 5px;
+            line-height: 1.2;
+            margin-bottom: 3px;
         }
         
         .ministerio {
             font-size: 11px;
-            font-family: 'Arial', sans-serif;
             font-weight: bold;
             line-height: 1.2;
         }
@@ -75,38 +69,39 @@
             text-align: center;
             font-size: 16px;
             font-weight: bold;
-            margin: 20px 0;
+            margin: 15px 0;
         }
         
         /* PÁRRAFO DE INTRODUCCIÓN */
         .intro-paragraph {
             text-align: left;
-            margin: 15px 0 20px 0;
+            margin: 10px 0 15px 0;
             font-size: 11px;
             line-height: 1.2;
-            padding: 0 10px;
+            padding: 0 5px;
         }
         
-        /* TABLA */
+        /* TABLA - COMPACTA PARA CABER EN UNA PÁGINA */
         .table-container {
-            margin: 20px auto;
+            margin: 15px 0;
             width: 100%;
-            overflow-x: auto;
         }
         
         table {
             width: 100%;
             border-collapse: collapse;
             border: 1px solid black;
-            margin: 0 auto;
-            font-size: 10px;
+            font-size: 9px; /* Tamaño reducido para mejor ajuste */
+            table-layout: fixed; /* Mejor control del ancho */
         }
         
         th, td {
             border: 1px solid black;
-            padding: 5px 3px;
+            padding: 3px 2px;
             text-align: center;
             vertical-align: middle;
+            word-wrap: break-word;
+            overflow: hidden;
         }
         
         th {
@@ -114,52 +109,78 @@
             background-color: #f5f5f5;
         }
         
-        /* INFORMACIÓN INFERIOR */
-        .fecha-expedicion,
-        .advertencia-texto,
-        .no-validez,
-        .info-section,
-        .expedido-por,
-        .generado-por,
-        .verificacion-box {
-            text-align: center;
-            margin: 10px auto;
-            padding: 0 10px;
-            line-height: 1.3;
+        /* AJUSTES ESPECÍFICOS DE ANCHO PARA CADA COLUMNA */
+        .col-licencia { width: 12%; }
+        .col-obra { width: 22%; }
+        .col-ciudad { width: 12%; }
+        .col-valor { width: 14%; }
+        .col-periodo { width: 10%; }
+        .col-fecha { width: 10%; }
+        .col-ticket { width: 10%; }
+        
+        /* CONTENIDO INFERIOR - COMPACTO */
+        .content-section {
+            margin: 8px 0;
+            padding: 0 5px;
+            line-height: 1.2;
         }
         
         .fecha-expedicion {
-            margin-top: 25px;
+            margin-top: 15px;
+            text-align: center;
         }
         
         .advertencia-texto {
             font-weight: bold;
-            margin: 15px auto;
+            text-align: center;
+            margin: 10px 0;
+            font-size: 10px;
         }
         
         .no-validez {
             font-weight: bold;
-            margin: 10px auto;
+            text-align: center;
+            margin: 8px 0;
         }
         
-        /* FOOTER */
-        .footer {
+        .info-section {
             text-align: center;
-            margin-top: 40px;
-            padding: 10px;
+            margin: 8px 0;
+            font-size: 10px;
+        }
+        
+        .expedido-por,
+        .generado-por {
+            text-align: center;
+            margin: 5px 0;
+        }
+        
+        .verificacion-box {
+            text-align: center;
+            margin: 10px 0;
+            font-size: 10px;
+        }
+        
+        /* FOOTER - POSICIONADO EN LA PARTE INFERIOR */
+        .footer {
+            position: absolute;
+            bottom: 1cm;
+            left: 0;
+            right: 0;
+            text-align: center;
+            margin-top: 20px;
         }
         
         .footer-image {
-            width: 200px;
+            width: 180px;
             height: auto;
-            max-height: 80px;
         }
         
         /* NÚMERO DE PÁGINA */
         .page-number {
             position: absolute;
-            bottom: 20px;
-            right: 50px;
+            bottom: 0.5cm;
+            right: 2cm;
             font-size: 9px;
             color: #666;
         }
@@ -173,23 +194,73 @@
             text-transform: uppercase;
         }
         
-        /* RESPONSIVE PARA IMPRESIÓN */
+        .text-center {
+            text-align: center;
+        }
+        
+        /* ESTILOS ESPECÍFICOS PARA IMPRESIÓN/PDF */
         @media print {
             body {
-                padding: 0;
-                margin: 0;
+                background: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                width: 21cm !important;
+                height: 29.7cm !important;
             }
             
             .page-container {
-                box-shadow: none;
-                padding: 30px 40px;
-                margin: 0;
-                width: 100%;
+                width: 100% !important;
+                height: 100% !important;
+                min-height: 100% !important;
+                max-height: 100% !important;
+                margin: 0 !important;
+                padding: 2cm !important;
+                box-shadow: none !important;
+                page-break-after: avoid !important;
+                page-break-inside: avoid !important;
+                overflow: hidden !important;
+            }
+            
+            /* Evitar que los enlaces se muestren en azul */
+            a {
+                color: black !important;
+                text-decoration: none !important;
+            }
+            
+            /* Asegurar que el footer esté en la parte inferior */
+            .footer {
+                position: fixed;
+                bottom: 1cm;
+            }
+            
+            /* Evitar que se corten elementos importantes */
+            table {
+                page-break-inside: avoid;
+            }
+            
+            .verificacion-box {
+                page-break-inside: avoid;
+            }
+        }
+        
+        /* ESTILOS PARA VISUALIZACIÓN EN NAVEGADOR */
+        @media screen {
+            body {
+                background-color: #f0f0f0;
+                padding: 20px 0;
+                display: flex;
+                justify-content: center;
+                align-items: flex-start;
                 min-height: 100vh;
             }
             
-            .footer {
-                margin-top: 30px;
+            .page-container {
+                box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            }
+            
+            .verificacion-box a {
+                color: blue;
+                text-decoration: underline;
             }
         }
     </style>
@@ -232,16 +303,16 @@
             <table>
                 <thead>
                     <tr>
-                        <th style="width: 12%;">
+                        <th class="col-licencia">
                             <div>N°</div>
-                            <div style="font-size: 9px;">Licencia/Contrato</div>
+                            <div style="font-size: 8px;">Licencia/Contrato</div>
                         </th>
-                        <th style="width: 20%;">Nombre Obra</th>
-                        <th style="width: 15%;">Ciudad Ejecución</th>
-                        <th style="width: 15%;">Valor Pago</th>
-                        <th style="width: 10%;">Periodo</th>
-                        <th style="width: 10%;">Fecha</th>
-                        <th style="width: 10%;">Ticket</th>
+                        <th class="col-obra">Nombre Obra</th>
+                        <th class="col-ciudad">Ciudad Ejecución</th>
+                        <th class="col-valor">Valor Pago</th>
+                        <th class="col-periodo">Periodo</th>
+                        <th class="col-fecha">Fecha</th>
+                        <th class="col-ticket">Ticket</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -257,7 +328,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="7" style="text-align: center;">
+                        <td colspan="7" class="text-center">
                             No hay transacciones para mostrar
                         </td>
                     </tr>
@@ -275,7 +346,7 @@
         </div>
         
         <!-- FECHA DE EXPEDICIÓN -->
-        <div class="fecha-expedicion">
+        <div class="content-section fecha-expedicion">
             Expedido por el SENA, a los <span class="negrita">{{ $fecha_emision->day ?? now()->day }}</span> 
             (<span class="negrita">{{ $fecha_emision->day ?? now()->day }}</span>) días del mes de 
             <span class="negrita uppercase">{{ obtenerMesEspanol($fecha_emision->month ?? now()->month) }}</span> de 
@@ -283,21 +354,21 @@
         </div>
         
         <!-- TEXTO DE ADVERTENCIA -->
-        <div class="advertencia-texto">
+        <div class="content-section advertencia-texto">
             "LA EXPEDICIÓN DE ESTA CERTIFICACIÓN, NO IMPIDE QUE EL SENA VERIFIQUE LA BASE DE LIQUIDACIÓN DE FIC Y QUE CONSTATE EL CUMPLIMIENTO EN FONDO NACIONAL DE FORMACIÓN PROFESIONAL DE LA INDUSTRIA DE LA CONSTRUCCIÓN FIC."
         </div>
         
         <!-- SECCIÓN DE NO VALIDEZ -->
-        <div class="no-validez">NO TIENE VALIDEZ PARA FINES TRIBUTARIOS</div>
+        <div class="content-section no-validez">NO TIENE VALIDEZ PARA FINES TRIBUTARIOS</div>
         
         <!-- INFORMACIÓN ADICIONAL -->
-        <div class="info-section">
+        <div class="content-section info-section">
             <p>Este documento no tiene validez en procesos de selección contractual con entidades del estado.</p>
             <p>La expedición de esta certificación no impide que el SENA verifique la base de liquidación de aportes y que constate el cumplimiento en Contrato de Aprendizaje.</p>
         </div>
         
         <!-- EXPEDIDO POR -->
-        <div class="expedido-por">
+        <div class="content-section expedido-por">
             @if($certificados->count() > 0)
                 Expedido por el Servicio Nacional de Aprendizaje – <span class="negrita">{{ $certificados->first()->regional_sena ?? 'BOGOTÁ' }}</span>
             @else
@@ -306,7 +377,7 @@
         </div>
         
         <!-- GENERADO POR -->
-        <div class="generado-por">
+        <div class="content-section generado-por">
             @if($certificados->count() > 0)
                 Generado por: <span class="negrita">{{ $certificados->first()->generado_por ?? 'Sistema SENA' }}</span>
             @else
@@ -315,15 +386,15 @@
         </div>
         
         <!-- CÓDIGO DE VERIFICACIÓN -->
-        <div class="verificacion-box">
+        <div class="content-section verificacion-box">
             <p>
                 ¿Desea saber si este certificado es auténtico?, por favor ingrese a la página web 
-                <a href="https://certificadoempresarios.sena.edu.co/" style="color: blue; text-decoration: underline;">
+                <a href="https://certificadoempresarios.sena.edu.co/">
                     https://certificadoempresarios.sena.edu.co/
                 </a> 
                 enlace CONSULTAR CODIGO CERTIFICADO y digite:
             </p>
-            <p style="margin-top: 5px;">
+            <p style="margin-top: 3px;">
                 @if($certificados->count() > 0)
                     el código de verificación: <span class="negrita">{{ $certificados->first()->codigo_verificacion ?? 'CV001' }}</span> 
                     y el Número de Certificado: <span class="negrita">{{ $certificados->first()->numero_certificado ?? 'NC001' }}</span>
