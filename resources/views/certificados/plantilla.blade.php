@@ -4,221 +4,235 @@
     <meta charset="utf-8">
     <title>Certificado FIC - SENA</title>
     <style>
-        /* Estilos generales basados en plantillas oficiales */
+        /* Estilos generales basados en el Word convertido */
         body { 
             font-family: 'Arial', sans-serif;
             margin: 0;
-            padding: 60px 70px 100px; /* Más padding abajo para el footer */
-            font-size: 11pt;
-            line-height: 1.2;
+            padding: 0;
+            font-size: 11px;
             color: #000000;
-            position: relative;
-            min-height: 29.7cm; /* Altura aproximada A4 */
+            text-align: center;
         }
         
         /* Contenedor principal */
         .page-container {
-            max-width: 21cm;
+            width: 21cm;
+            min-height: 29.7cm;
             margin: 0 auto;
+            padding: 0 50px;
+            box-sizing: border-box;
             position: relative;
         }
         
-        /* Encabezado con logo */
+        /* Logo y encabezado */
         .header {
             text-align: center;
-            margin-bottom: 40px;
+            margin-bottom: 10px;
+            position: relative;
+            margin-top: 100px;
         }
         
-        .logo-line {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 15px;
+        .logo-container {
+            position: absolute;
+            left: 0;
+            top: 0;
+            margin-top: -95px;
+            margin-left:43%
         }
         
         .logo {
-            height: 85px;
-            width: auto;
-            margin-right: 20px;
+            height: 98px;
+            width: 98px;
+        }
+        
+        .header-content {
+            display: inline-block;
+            text-align: center;
+            margin-top: 0;
         }
         
         .institucion {
-            font-size: 14pt;
-            font-weight: bold;
-            text-transform: uppercase;
-            color: #000;
+            font-size: 16px;
+            font-family: 'Arial', sans-serif;
+            line-height: 173%;
+            margin-bottom: 0;
+            padding-top: 0;
         }
         
         .ministerio {
-            font-size: 12pt;
+            font-size: 11px;
+            font-family: 'Arial', sans-serif;
             font-weight: bold;
-            text-align: center;
-            margin: 20px 0;
+            margin-top: 0;
+            line-height: 8.95pt;
         }
         
         /* Título CERTIFICA */
         .certifica-title {
             text-align: center;
-            font-size: 12pt;
+            font-size: 16px;
+            font-family: 'Arial', sans-serif;
             font-weight: bold;
-            text-transform: uppercase;
-            margin: 30px 0 40px 0;
+            margin: 20px 0 10px 0;
         }
         
-        /* Párrafo de introducción */
+        /* Párrafo de introducción - con margen izquierdo como en el Word */
         .intro-paragraph {
-            text-align: justify;
-            margin: 0 0 30px 0;
-            font-size: 11pt;
-            line-height: 1.3;
+            text-align: left;
+            margin: 10.9pt 0 0 6.5pt;
+            font-size: 11px;
+            line-height: 108%;
+            font-family: 'Arial MT', sans-serif;
+            padding: 10px;
         }
         
-        /* Tabla de transacciones - estilo oficial */
+        /* Tabla de transacciones - estilo exacto del Word */
         .table-container {
-            margin: 30px 0 40px 0;
-            width: 100%;
+            margin: 0 0 0 7.1pt;
+            width: 700px;
+            padding:10px;
         }
         
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 10pt;
-            border: 1px solid #000;
+            border: 1px solid black;
+            margin: 0 auto;
+        }
+        
+        th, td {
+            border: 1px solid black;
+            padding: 0;
+            text-align: center;
+            vertical-align: top;
+            height: 19pt;
         }
         
         th {
             font-weight: bold;
-            text-align: center;
-            padding: 8px 5px;
-            border: 1px solid #000;
-            background-color: #ffffff;
-            vertical-align: middle;
-            font-size: 10pt;
+            font-size: 11px;
+            font-family: 'Arial', sans-serif;
         }
         
         td {
-            padding: 8px 5px;
-            border: 1px solid #000;
-            vertical-align: middle;
-            font-size: 10pt;
+            font-size: 11px;
+            font-family: 'Arial MT', sans-serif;
         }
         
+        /* Estilos específicos para celdas de la tabla */
         .table-header {
-            background-color: #f0f0f0;
+            background-color: transparent;
+        }
+        
+        .table-data {
+            background-color: transparent;
         }
         
         /* Fila del total */
-        .total-row {
-            font-weight: bold;
-        }
-        
         .total-row td {
-            padding: 10px 5px;
+            height: 9pt;
+            padding: 0;
         }
         
-        /* Fecha de expedición - CENTRADA como en la imagen */
+        /* Fecha de expedición - centrado como en el Word */
         .fecha-expedicion {
-            margin: 30px 0;
+            margin: 1.3pt 0 0 0;
+            font-size: 11px;
+            font-family: 'Arial MT', sans-serif;
             text-align: center;
-            font-size: 11pt;
+            padding: 10px;
         }
         
-        /* Texto de advertencia - SIN CUADRO, centrado como en la imagen */
+        /* Texto de advertencia - centrado y en negrita */
         .advertencia-texto {
-            margin: 25px 0;
-            font-size: 10pt;
-            text-align: center;
+            margin: 1.7pt 7.8pt 0.7pt 2.25pt;
+            font-size: 11px;
+            font-family: 'Arial', sans-serif;
             font-weight: bold;
+            text-align: center;
+            line-height: 108%;
+            padding: 15px;
         }
         
-        .advertencia-linea {
-            display: block;
-            margin: 2px 0;
-        }
-        
-        /* Sección de no validez */
+        /* Sección de no validez - centrado */
         .no-validez {
             font-weight: bold;
             text-align: center;
-            margin: 25px 0;
-            font-size: 11pt;
-            text-transform: uppercase;
+            font-size: 11px;
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 15px;
         }
         
-        /* Información adicional - ALINEADO A LA IZQUIERDA como en la imagen */
+        /* Información adicional - centrado */
         .info-section {
-            margin: 25px 0;
-            font-size: 10pt;
-            text-align: left;
+            margin: 1.5pt 0 0 0;
+            font-size: 11px;
+            font-family: 'Arial MT', sans-serif;
+            text-align: center;
+            padding: 15px;
         }
         
         .info-section p {
-            margin: 8px 0;
+            margin: 0;
+            line-height: 108%;
         }
         
-        /* Expedido por - CENTRADO Y EN NEGRITA como en la imagen */
+        /* Expedido por - centrado */
         .expedido-por {
-            font-weight: bold;
+            margin: 0.75pt 132.35pt 0.1pt 126.8pt;
+            font-size: 11px;
+            font-family: 'Arial MT', sans-serif;
             text-align: center;
-            margin: 25px 0;
-            font-size: 11pt;
+            line-height: 216%;
+            padding: 5px;
+
         }
         
-        /* Código de verificación - MANTENER BORDE como en las plantillas originales */
+        /* Generado por - centrado */
+        .generado-por {
+            margin: 0 132.35pt 0 126.8pt;
+            font-size: 11px;
+            font-family: 'Arial MT', sans-serif;
+            text-align: center;
+            line-height: 216%;
+        }
+        
+        /* Código de verificación */
         .verificacion-box {
-            margin: 30px 0 50px 0;
-            padding: 20px;
-            border: 1px solid #000;
-            background-color: #ffffff;
-            font-size: 10pt;
-            text-align: left;
-        }
-        
-        .verificacion-title {
-            font-weight: bold;
-            margin-bottom: 10px;
+            margin: 0.75pt 7.85pt 0 2.25pt;
+            font-size: 11px;
+            font-family: 'Arial MT', sans-serif;
+            text-align: center;
+            line-height: 108%;
+            padding:10px;
         }
         
         .verificacion-url {
+            color: blue;
             text-decoration: underline;
-            color: #0000EE;
-            margin: 10px 0;
         }
         
-        .codigos {
-            margin-top: 15px;
-            font-weight: bold;
-        }
-        
-        /* FOOTER - Basado en la imagen proporcionada */
+        /* Footer */
         .footer {
             position: absolute;
-            bottom: 40px;
+            bottom: 20px;
             left: 0;
             right: 0;
             text-align: center;
             font-size: 9pt;
-            color: #000;
-            padding-top: 20px;
-            border-top: 1px solid #ddd;
-            margin-top: 50px;
+        }
+
+        .footer-image{
+            width:190px;
+            height:80px;   
         }
         
-        .footer-social {
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        
-        .footer-website {
-            color: #0054a6;
-            font-weight: bold;
-        }
-        
-        /* Número de página en cada hoja */
+        /* Número de página */
         .page-number {
             position: absolute;
-            bottom: 20px;
-            right: 70px;
+            bottom: 10px;
+            right: 50px;
             font-size: 9pt;
             color: #666;
         }
@@ -228,12 +242,12 @@
             font-weight: bold;
         }
         
-        .text-left {
-            text-align: left;
-        }
-        
         .text-center {
             text-align: center;
+        }
+        
+        .text-left {
+            text-align: left;
         }
         
         .text-right {
@@ -243,56 +257,21 @@
         .uppercase {
             text-transform: uppercase;
         }
-        
-        .underline {
-            text-decoration: underline;
-        }
-        
-        /* Espaciado específico */
-        .spacing-1 {
-            margin-top: 25px;
-        }
-        
-        .spacing-2 {
-            margin-top: 20px;
-        }
-        
-        /* Para manejar múltiples páginas si es necesario */
-        .page-break {
-            page-break-after: always;
-        }
-        
-        /* Estilos para impresión */
-        @media print {
-            body {
-                padding: 50px 60px 80px;
-            }
-            
-            .footer {
-                position: fixed;
-                bottom: 20px;
-                left: 60px;
-                right: 60px;
-            }
-            
-            .page-number {
-                position: fixed;
-                bottom: 20px;
-                right: 60px;
-            }
-        }
     </style>
 </head>
 <body>
     <div class="page-container">
-        <!-- Encabezado con logo -->
+        <!-- Logo (posición similar al Word) -->
+        <div class="logo-container">
+            <img src="https://www.sena.edu.co/Style%20Library/alayout/images/logoSena.png?rev=40" alt="Logo SENA" class="logo">
+        </div>
+        
+        <!-- Encabezado -->
         <div class="header">
-            <div class="logo-line">
-                <!-- Logo del SENA -->
-                <img src="https://www.sena.edu.co/Style%20Library/alayout/images/logoSena.png?rev=40" alt="Logo SENA" class="logo">
-                <div class="institucion">Servicio Nacional de Aprendizaje SENA</div>
+            <div class="header-content">
+                <h1 class="institucion">Servicio Nacional de Aprendizaje SENA</h1>
+                <p class="ministerio">MINISTERIO DE TRABAJO</p>
             </div>
-            <div class="ministerio">MINISTERIO DE TRABAJO</div>
         </div>
         
         <!-- Título CERTIFICA -->
@@ -300,10 +279,17 @@
         
         <!-- Contenido principal -->
         <div class="intro-paragraph">
-            Que el constructor con razón social <span class="negrita">{{ $constructor->constructor_razon_social }}</span> 
-            identificado con el NIT <span class="negrita">{{ $constructor->constructor_nit }}</span>, 
-            por concepto de Fondo Nacional de Formación Profesional de la Industria de la Construcción FIC, 
-            realizó a través del botón electrónico de pagos las siguientes transacciones:
+            @if($certificados->count() > 0)
+                Que el constructor con razón social <span class="negrita">{{ $certificados->first()->constructor_razon_social }}</span> 
+                identificado con el NIT <span class="negrita">{{ $certificados->first()->constructor_nit }}</span>, 
+                por concepto de Fondo Nacional de Formación Profesional de la Industria de la Construcción FIC, 
+                realizó a través del botón electrónico de pagos las siguientes transacciones:
+            @else
+                Que el constructor con razón social <span class="negrita">NOMBRE DE EMPRESA</span> 
+                identificado con el NIT <span class="negrita">XXXXXXXX</span>, 
+                por concepto de Fondo Nacional de Formación Profesional de la Industria de la Construcción FIC, 
+                realizó a través del botón electrónico de pagos las siguientes transacciones:
+            @endif
         </div>
         
         <!-- Tabla de transacciones -->
@@ -311,103 +297,206 @@
             <table>
                 <thead>
                     <tr class="table-header">
-                        <th style="width: 16%">N°<br>Licencia/Contrato</th>
-                        <th style="width: 22%">Nombre Obra</th>
-                        <th style="width: 13%">Ciudad<br>Ejecución</th>
-                        <th style="width: 14%">Valor Pago</th>
-                        <th style="width: 10%">Periodo</th>
-                        <th style="width: 10%">Fecha</th>
-                        <th style="width: 15%">Ticket</th>
+                        <td style="width: 75.3pt;">
+                            <p style="margin: 0; text-align: center; line-height: 9.15pt;">
+                                <strong>N°</strong>
+                            </p>
+                            <p style="margin: 0.8pt 0 0 0; text-align: center; line-height: 8.05pt;">
+                                <strong>Licencia/Contrato</strong>
+                            </p>
+                        </td>
+                        <td style="width: 75.3pt;">
+                            <p style="margin: 0; text-align: left; line-height: 9.15pt; padding-left: 11.95pt;">
+                                <strong>Nombre Obra</strong>
+                            </p>
+                        </td>
+                        <td style="width: 75.3pt;">
+                            <p style="margin: 0; text-align: center; line-height: 9.15pt;">
+                                <strong>Ciudad Ejecución</strong>
+                            </p>
+                        </td>
+                        <td style="width: 75.3pt;">
+                            <p style="margin: 0; text-align: center; line-height: 9.15pt;">
+                                <strong>Valor Pago</strong>
+                            </p>
+                        </td>
+                        <td style="width: 75.3pt;">
+                            <p style="margin: 0; text-align: center; line-height: 9.15pt;">
+                                <strong>Periodo</strong>
+                            </p>
+                        </td>
+                        <td style="width: 75.3pt;">
+                            <p style="margin: 0; text-align: center; line-height: 9.15pt;">
+                                <strong>Fecha</strong>
+                            </p>
+                        </td>
+                        <td style="width: 75.3pt;">
+                            <p style="margin: 0; text-align: center; line-height: 9.15pt;">
+                                <strong>Ticket</strong>
+                            </p>
+                        </td>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach($certificados as $certificado)
-                    <tr>
-                        <td class="text-center">{{ $certificado->licencia_contrato ?? 'N/A' }}</td>
-                        <td class="text-left">{{ $certificado->nombre_obra }}</td>
-                        <td class="text-center">{{ $certificado->ciudad_ejecucion }}</td>
-                        <td class="text-right">${{ number_format($certificado->valor_pago, 0, ',', '.') }}</td>
-                        <td class="text-center">{{ $certificado->periodo }}</td>
-                        <td class="text-center">{{ $certificado->fecha->format('d/m/Y') }}</td>
-                        <td class="text-center">{{ $certificado->ticket }}</td>
+                    @forelse($certificados as $certificado)
+                    <tr class="table-data">
+                        <td style="width: 75.3pt;">
+                            <p style="margin: 0; text-align: center; line-height: 9.0pt;">
+                                {{ $certificado->licencia_contrato ?? 'N/A' }}
+                            </p>
+                        </td>
+                        <td style="width: 75.3pt;">
+                            <p style="margin: 0.8pt 0.05pt 0.0001pt 0.75pt; text-align: center; line-height: 8.2pt;">
+                                {{ $certificado->nombre_obra ?? '' }}
+                            </p>
+                        </td>
+                        <td style="width: 75.3pt;">
+                            <p style="margin: 0; text-align: center; line-height: 9.0pt;">
+                                {{ $certificado->ciudad_ejecucion ?? '' }}
+                            </p>
+                        </td>
+                        <td style="width: 75.3pt;">
+                            <p style="margin: 0; text-align: center; line-height: 9.0pt;">
+                                ${{ number_format($certificado->valor_pago ?? 0, 0, ',', '.') }}
+                            </p>
+                        </td>
+                        <td style="width: 75.3pt;">
+                            <p style="margin: 0; text-align: center; line-height: 9.0pt;">
+                                {{ $certificado->periodo ?? '' }}
+                            </p>
+                        </td>
+                        <td style="width: 75.3pt;">
+                            <p style="margin: 0; text-align: center; line-height: 9.0pt;">
+                                {{ optional($certificado->fecha)->format('d/m/Y') ?? '' }}
+                            </p>
+                        </td>
+                        <td style="width: 75.3pt;">
+                            <p style="margin: 0; text-align: center; line-height: 9.0pt;">
+                                {{ $certificado->ticket ?? '' }}
+                            </p>
+                        </td>
                     </tr>
-                    @endforeach
+                    @empty
+                    <tr>
+                        <td colspan="7" class="text-center">
+                            No hay transacciones para mostrar
+                        </td>
+                    </tr>
+                    @endforelse
+                    
                     <!-- Fila del total -->
                     <tr class="total-row">
-                        <td colspan="2"></td>
-                        <td class="text-center negrita">Total</td>
-                        <td class="text-right negrita">${{ number_format($total, 0, ',', '.') }}</td>
-                        <td colspan="3"></td>
+                        <td style="width: 75.3pt;">
+                            <p style="margin: 0; text-align: left; line-height: normal;">
+                                &nbsp;
+                            </p>
+                        </td>
+                        <td style="width: 75.3pt;">
+                            <p style="margin: 0; text-align: left; line-height: normal;">
+                                &nbsp;
+                            </p>
+                        </td>
+                        <td style="width: 75.3pt;">
+                            <p style="margin: 0; text-align: center; line-height: 8.0pt;">
+                                Total
+                            </p>
+                        </td>
+                        <td style="width: 75.3pt;">
+                            <p style="margin: 0; text-align: center; line-height: 8.0pt;" class="negrita">
+                                ${{ number_format($total ?? 0, 0, ',', '.') }}
+                            </p>
+                        </td>
+                        <td style="width: 75.3pt;">
+                            <p style="margin: 0; text-align: left; line-height: normal;">
+                                &nbsp;
+                            </p>
+                        </td>
+                        <td style="width: 75.3pt;">
+                            <p style="margin: 0; text-align: left; line-height: normal;">
+                                &nbsp;
+                            </p>
+                        </td>
+                        <td style="width: 75.3pt;">
+                            <p style="margin: 0; text-align: left; line-height: normal;">
+                                &nbsp;
+                            </p>
+                        </td>
                     </tr>
                 </tbody>
             </table>
         </div>
         
-        <!-- Fecha de expedición - CENTRADA -->
+        <!-- Fecha de expedición -->
         <div class="fecha-expedicion">
-            Expedido por el SENA, a los <span class="negrita">{{ $fecha_emision->day }}</span> 
-            (<span class="negrita">{{ $fecha_emision->day }}</span>) días del mes de 
-            <span class="negrita uppercase">{{ obtenerMesEspanol($fecha_emision->month) }}</span> de 
-            <span class="negrita">{{ $fecha_emision->year }}</span>
+            Expedido por el SENA, a los <span class="negrita">{{ $fecha_emision->day ?? now()->day }}</span> 
+            (<span class="negrita">{{ $fecha_emision->day ?? now()->day }}</span>) días del mes de 
+            <span class="negrita uppercase">{{ obtenerMesEspanol($fecha_emision->month ?? now()->month) }}</span> de 
+            <span class="negrita">{{ $fecha_emision->year ?? now()->year }}</span>
         </div>
         
-        <!-- Texto de advertencia - SIN CUADRO, dividido en líneas -->
+        <!-- Texto de advertencia -->
         <div class="advertencia-texto">
-            <span class="advertencia-linea">"LA EXPEDICIÓN DE ESTA CERTIFICACIÓN, NO IMPIDE QUE EL SENA VERIFIQUE</span>
-            <span class="advertencia-linea">LA BASE DE LIQUIDACIÓN DE FIC Y QUE CONSTATE EL CUMPLIMIENTO EN</span>
-            <span class="advertencia-linea">FONDO NACIONAL DE FORMACIÓN PROFESIONAL DE LA INDUSTRIA DE LA</span>
-            <span class="advertencia-linea">CONSTRUCCIÓN FIC."</span>
+            "LA EXPEDICIÓN DE ESTA CERTIFICACIÓN, NO IMPIDE QUE EL SENA VERIFIQUE LA BASE DE LIQUIDACIÓN DE FIC Y QUE CONSTATE EL CUMPLIMIENTO EN FONDO NACIONAL DE FORMACIÓN PROFESIONAL DE LA INDUSTRIA DE LA CONSTRUCCIÓN FIC."
         </div>
         
         <!-- Sección de no validez -->
         <div class="no-validez">NO TIENE VALIDEZ PARA FINES TRIBUTARIOS</div>
         
-        <!-- Información adicional - ALINEADO A LA IZQUIERDA -->
+        <!-- Información adicional -->
         <div class="info-section">
             <p>Este documento no tiene validez en procesos de selección contractual con entidades del estado.</p>
-            
-            <p>La expedición de esta certificación no impide que el SENA verifique la base de liquidación de
-            aportes y que constate el cumplimiento en Contrato de Aprendizaje.</p>
+            <br>
+            <p>La expedición de esta certificación no impide que el SENA verifique la base de liquidación de aportes y que constate el cumplimiento en Contrato de Aprendizaje.</p>
         </div>
         
-        <!-- Expedido por - CENTRADO Y EN NEGRITA -->
+        <!-- Expedido por -->
         <div class="expedido-por">
-            Expedido por el Servicio Nacional de Aprendizaje – <span class="negrita">{{ $constructor->regional_sena }}</span>
+            @if($certificados->count() > 0)
+                Expedido por el Servicio Nacional de Aprendizaje – <span class="negrita">{{ $certificados->first()->regional_sena ?? 'BOGOTÁ' }}</span>
+            @else
+                Expedido por el Servicio Nacional de Aprendizaje – <span class="negrita">BOGOTÁ</span>
+            @endif
         </div>
         
-        <!-- Generado por - CENTRADO -->
-        <div class="text-center spacing-1">
-            <p>Generado por: <span class="negrita">{{ $constructor->generado_por }}</span></p>
+        <!-- Generado por -->
+        <div class="generado-por">
+            @if($certificados->count() > 0)
+                Generado por: <span class="negrita">{{ $certificados->first()->generado_por ?? 'Sistema SENA' }}</span>
+            @else
+                Generado por: <span class="negrita">Sistema SENA</span>
+            @endif
         </div>
         
-        <!-- Código de verificación - MANTENER BORDE como en plantillas originales -->
+        <!-- Código de verificación -->
         <div class="verificacion-box">
-            <div class="verificacion-title">¿Desea saber si este certificado es auténtico?, por favor ingrese a la página web:</div>
-            
-            <div class="verificacion-url">https://certificadoempresarios.sena.edu.co/</div>
-            
-            <div>enlace CONSULTAR CODIGO CERTIFICADO y digite:</div>
-            
-            <div class="codigos">
-                <p>el código de verificación: <span class="negrita">{{ $certificados->first()->codigo_verificacion }}</span></p>
-                <p>y el Número de Certificado: <span class="negrita">{{ $certificados->first()->numero_certificado }}</span></p>
-            </div>
+            <p style="margin: 0;">
+                ¿Desea saber si este certificado es auténtico?, por favor ingrese a la página web 
+                <a href="https://certificadoempresarios.sena.edu.co/" class="verificacion-url">https://certificadoempresarios.sena.edu.co/</a> 
+                enlace CONSULTAR CODIGO CERTIFICADO y digite:
+            </p>
+            <p style="margin-top: 0.75pt 0 0 0;">
+                @if($certificados->count() > 0)
+                    el código de verificación: <span class="negrita">{{ $certificados->first()->codigo_verificacion ?? 'CV001' }}</span> 
+                    y el Número de Certificado: <span class="negrita">{{ $certificados->first()->numero_certificado ?? 'NC001' }}</span>
+                @else
+                    el código de verificación: <span class="negrita">CV001</span> 
+                    y el Número de Certificado: <span class="negrita">NC001</span>
+                @endif
+            </p>
         </div>
         
-        <!-- Footer fijo en cada página -->
-        <div class="footer">
-            <div class="footer-social">@SENAComunica</div>
-            <div class="footer-website">www.sena.edu.co</div>
-        </div>
+        <!-- Footer -->
+    <div class="footer">
+        <img src="{{ asset('images/footer.jpg') }}" alt="@SENAComunica www.sena.edu.co" class="footer-image">
+    </div>
         
-        <!-- Número de página (en cada hoja) -->
+        <!-- Número de página -->
         <div class="page-number">Pág. 1</div>
     </div>
 </body>
 </html>
 
 <?php
-// Función helper para obtener el mes en español
 function obtenerMesEspanol($mes) {
     $meses = [
         1 => 'enero', 2 => 'febrero', 3 => 'marzo', 4 => 'abril',
@@ -416,4 +505,7 @@ function obtenerMesEspanol($mes) {
     ];
     return $meses[$mes] ?? 'mes';
 }
+
+
+
 ?>
