@@ -37,7 +37,7 @@
             position: absolute;
             left: 0;
             top: 0;
-            margin-top: -95px;
+            margin-top: -60px;
             margin-left:43%
         }
         
