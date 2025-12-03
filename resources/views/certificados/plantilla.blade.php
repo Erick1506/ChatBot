@@ -12,6 +12,7 @@
             font-size: 11px;
             color: #000000;
             text-align: center;
+            width: 20px;
         }
         
         /* Contenedor principal */
