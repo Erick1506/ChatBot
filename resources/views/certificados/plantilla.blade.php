@@ -13,7 +13,7 @@
         
         body { 
             font-family: 'Arial', sans-serif;
-            font-size: 11px;
+            font-size: 10px; /* Reducido de 11px */
             color: #000000;
             background-color: #ffffff;
             width: 100%;
@@ -25,65 +25,64 @@
         .page-container {
             width: 21cm;
             min-height: 29.7cm;
-            max-height: 29.7cm; /* Evita que crezca más de una página */
+            height: 29.7cm; /* Altura fija */
             background: white;
             margin: 0 auto;
-            padding: 2cm 2cm 1.5cm 2cm; /* Márgenes estándar para impresión */
+            padding: 1.5cm 2cm 1.5cm 2cm; /* Reducido padding superior e inferior */
             position: relative;
-            overflow: hidden; /* Previene contenido desbordado */
+            overflow: hidden;
         }
         
-        /* LOGO - CENTRADO Y AJUSTADO */
+        /* LOGO - MÁS PEQUEÑO */
         .logo-container {
             text-align: center;
-            margin: 0 auto 10px auto;
+            margin: 0 auto 5px auto; /* Reducido margen */
             width: 100%;
         }
         
         .logo {
-            height: 80px;
+            height: 70px; /* Reducido de 80px */
             width: auto;
-            margin-bottom: 5px;
         }
         
-        /* ENCABEZADO */
+        /* ENCABEZADO - MÁS COMPACTO */
         .header {
             text-align: center;
-            margin-bottom: 15px;
+            margin-bottom: 10px; /* Reducido */
         }
         
         .institucion {
-            font-size: 16px;
-            line-height: 1.2;
-            margin-bottom: 3px;
+            font-size: 14px; /* Reducido de 16px */
+            line-height: 1.1;
+            margin-bottom: 2px;
         }
         
         .ministerio {
-            font-size: 11px;
+            font-size: 10px; /* Reducido de 11px */
             font-weight: bold;
-            line-height: 1.2;
+            line-height: 1.1;
         }
         
         /* TÍTULO CERTIFICA */
         .certifica-title {
             text-align: center;
-            font-size: 16px;
+            font-size: 14px; /* Reducido de 16px */
             font-weight: bold;
-            margin: 15px 0;
+            margin: 10px 0; /* Reducido */
         }
         
         /* PÁRRAFO DE INTRODUCCIÓN */
         .intro-paragraph {
             text-align: left;
-            margin: 10px 0 15px 0;
-            font-size: 11px;
-            line-height: 1.2;
+            margin: 8px 0 10px 0; /* Reducido */
+            font-size: 10px; /* Reducido */
+            line-height: 1.1;
             padding: 0 5px;
         }
         
-        /* TABLA - COMPACTA PARA CABER EN UNA PÁGINA */
+        /* TABLA - SUPER COMPACTA */
         .table-container {
-            margin: 15px 0;
+            margin: 10px 0; /* Reducido */
             width: 100%;
         }
         
@@ -91,13 +90,13 @@
             width: 100%;
             border-collapse: collapse;
             border: 1px solid black;
-            font-size: 9px; /* Tamaño reducido para mejor ajuste */
-            table-layout: fixed; /* Mejor control del ancho */
+            font-size: 8px; /* Reducido significativamente */
+            table-layout: fixed;
         }
         
         th, td {
             border: 1px solid black;
-            padding: 3px 2px;
+            padding: 2px 1px; /* Reducido padding */
             text-align: center;
             vertical-align: middle;
             word-wrap: break-word;
@@ -107,81 +106,87 @@
         th {
             font-weight: bold;
             background-color: #f5f5f5;
+            font-size: 8px; /* Reducido */
         }
         
         /* AJUSTES ESPECÍFICOS DE ANCHO PARA CADA COLUMNA */
-        .col-licencia { width: 12%; }
-        .col-obra { width: 22%; }
-        .col-ciudad { width: 12%; }
-        .col-valor { width: 14%; }
-        .col-periodo { width: 10%; }
-        .col-fecha { width: 10%; }
-        .col-ticket { width: 10%; }
+        .col-licencia { width: 11%; }
+        .col-obra { width: 20%; }
+        .col-ciudad { width: 11%; }
+        .col-valor { width: 13%; }
+        .col-periodo { width: 9%; }
+        .col-fecha { width: 9%; }
+        .col-ticket { width: 9%; }
         
-        /* CONTENIDO INFERIOR - COMPACTO */
+        /* CONTENIDO INFERIOR - EXTRA COMPACTO */
         .content-section {
-            margin: 8px 0;
+            margin: 5px 0; /* Reducido significativamente */
             padding: 0 5px;
-            line-height: 1.2;
+            line-height: 1.1; /* Reducido */
+            text-align: center;
         }
         
         .fecha-expedicion {
-            margin-top: 15px;
-            text-align: center;
+            margin-top: 10px; /* Reducido */
+            font-size: 9px; /* Reducido */
         }
         
         .advertencia-texto {
             font-weight: bold;
             text-align: center;
-            margin: 10px 0;
-            font-size: 10px;
+            margin: 8px 0; /* Reducido */
+            font-size: 9px; /* Reducido */
+            line-height: 1.1;
         }
         
         .no-validez {
             font-weight: bold;
             text-align: center;
-            margin: 8px 0;
+            margin: 6px 0; /* Reducido */
+            font-size: 9px; /* Reducido */
         }
         
         .info-section {
             text-align: center;
-            margin: 8px 0;
-            font-size: 10px;
+            margin: 6px 0; /* Reducido */
+            font-size: 9px; /* Reducido */
+            line-height: 1.1;
         }
         
         .expedido-por,
         .generado-por {
             text-align: center;
-            margin: 5px 0;
+            margin: 4px 0; /* Reducido */
+            font-size: 9px; /* Reducido */
         }
         
         .verificacion-box {
             text-align: center;
-            margin: 10px 0;
-            font-size: 10px;
+            margin: 8px 0; /* Reducido */
+            font-size: 9px; /* Reducido */
+            line-height: 1.1;
         }
         
-        /* FOOTER - POSICIONADO EN LA PARTE INFERIOR */
+        /* FOOTER - MÁS PEQUEÑO Y MEJOR POSICIONADO */
         .footer {
             position: absolute;
-            bottom: 1cm;
+            bottom: 0.8cm; /* Ajustado para que quepa */
             left: 0;
             right: 0;
             text-align: center;
-            margin-top: 20px;
         }
         
         .footer-image {
-            width: 180px;
+            width: 150px; /* Reducido de 180px */
             height: auto;
         }
         
         /* NÚMERO DE PÁGINA */
         .page-number {
             position: absolute;
-            bottom: 0.5cm;
+            bottom: 0.3cm; /* Ajustado */
             right: 2cm;
-            font-size: 9px;
+            font-size: 8px;
             color: #666;
         }
         
@@ -206,6 +211,7 @@
                 margin: 0 !important;
                 width: 21cm !important;
                 height: 29.7cm !important;
+                font-size: 9px !important;
             }
             
             .page-container {
@@ -214,11 +220,32 @@
                 min-height: 100% !important;
                 max-height: 100% !important;
                 margin: 0 !important;
-                padding: 2cm !important;
+                padding: 1.5cm 2cm 1.5cm 2cm !important;
                 box-shadow: none !important;
                 page-break-after: avoid !important;
                 page-break-inside: avoid !important;
                 overflow: hidden !important;
+            }
+            
+            /* Reducir aún más para impresión */
+            .logo {
+                height: 60px !important;
+            }
+            
+            .institucion {
+                font-size: 13px !important;
+            }
+            
+            .certifica-title {
+                font-size: 13px !important;
+            }
+            
+            table {
+                font-size: 7px !important;
+            }
+            
+            th, td {
+                padding: 1px !important;
             }
             
             /* Evitar que los enlaces se muestren en azul */
@@ -229,17 +256,8 @@
             
             /* Asegurar que el footer esté en la parte inferior */
             .footer {
-                position: fixed;
-                bottom: 1cm;
-            }
-            
-            /* Evitar que se corten elementos importantes */
-            table {
-                page-break-inside: avoid;
-            }
-            
-            .verificacion-box {
-                page-break-inside: avoid;
+                position: fixed !important;
+                bottom: 0.8cm !important;
             }
         }
         
@@ -262,6 +280,11 @@
                 color: blue;
                 text-decoration: underline;
             }
+        }
+        
+        /* CLASE PARA REMOVER ELEMENTOS SI ES NECESARIO */
+        .remove-if-needed {
+            /* Se puede usar display: none en elementos menos críticos si aún no cabe */
         }
     </style>
 </head>
@@ -305,7 +328,7 @@
                     <tr>
                         <th class="col-licencia">
                             <div>N°</div>
-                            <div style="font-size: 8px;">Licencia/Contrato</div>
+                            <div style="font-size: 7px;">Licencia/Contrato</div>
                         </th>
                         <th class="col-obra">Nombre Obra</th>
                         <th class="col-ciudad">Ciudad Ejecución</th>
@@ -318,13 +341,13 @@
                 <tbody>
                     @forelse($certificados as $certificado)
                     <tr>
-                        <td>{{ $certificado->licencia_contrato ?? 'N/A' }}</td>
-                        <td>{{ $certificado->nombre_obra ?? '' }}</td>
-                        <td>{{ $certificado->ciudad_ejecucion ?? '' }}</td>
-                        <td>${{ number_format($certificado->valor_pago ?? 0, 0, ',', '.') }}</td>
-                        <td>{{ $certificado->periodo ?? '' }}</td>
-                        <td>{{ optional($certificado->fecha)->format('d/m/Y') ?? '' }}</td>
-                        <td>{{ $certificado->ticket ?? '' }}</td>
+                        <td style="font-size: 8px;">{{ $certificado->licencia_contrato ?? 'N/A' }}</td>
+                        <td style="font-size: 8px;">{{ $certificado->nombre_obra ?? '' }}</td>
+                        <td style="font-size: 8px;">{{ $certificado->ciudad_ejecucion ?? '' }}</td>
+                        <td style="font-size: 8px;">${{ number_format($certificado->valor_pago ?? 0, 0, ',', '.') }}</td>
+                        <td style="font-size: 8px;">{{ $certificado->periodo ?? '' }}</td>
+                        <td style="font-size: 8px;">{{ optional($certificado->fecha)->format('d/m/Y') ?? '' }}</td>
+                        <td style="font-size: 8px;">{{ $certificado->ticket ?? '' }}</td>
                     </tr>
                     @empty
                     <tr>
@@ -337,8 +360,8 @@
                     <!-- FILA DEL TOTAL -->
                     <tr style="font-weight: bold;">
                         <td colspan="2"></td>
-                        <td style="text-align: center;">Total</td>
-                        <td style="text-align: center;">${{ number_format($total ?? 0, 0, ',', '.') }}</td>
+                        <td style="text-align: center; font-size: 8px;">Total</td>
+                        <td style="text-align: center; font-size: 8px;">${{ number_format($total ?? 0, 0, ',', '.') }}</td>
                         <td colspan="3"></td>
                     </tr>
                 </tbody>
@@ -361,8 +384,8 @@
         <!-- SECCIÓN DE NO VALIDEZ -->
         <div class="content-section no-validez">NO TIENE VALIDEZ PARA FINES TRIBUTARIOS</div>
         
-        <!-- INFORMACIÓN ADICIONAL -->
-        <div class="content-section info-section">
+        <!-- INFORMACIÓN ADICIONAL (OPCIONAL - SE PUEDE REMOVER SI NO CABE) -->
+        <div class="content-section info-section remove-if-needed">
             <p>Este documento no tiene validez en procesos de selección contractual con entidades del estado.</p>
             <p>La expedición de esta certificación no impide que el SENA verifique la base de liquidación de aportes y que constate el cumplimiento en Contrato de Aprendizaje.</p>
         </div>
@@ -376,8 +399,8 @@
             @endif
         </div>
         
-        <!-- GENERADO POR -->
-        <div class="content-section generado-por">
+        <!-- GENERADO POR (OPCIONAL - SE PUEDE REMOVER SI NO CABE) -->
+        <div class="content-section generado-por remove-if-needed">
             @if($certificados->count() > 0)
                 Generado por: <span class="negrita">{{ $certificados->first()->generado_por ?? 'Sistema SENA' }}</span>
             @else
@@ -394,7 +417,7 @@
                 </a> 
                 enlace CONSULTAR CODIGO CERTIFICADO y digite:
             </p>
-            <p style="margin-top: 3px;">
+            <p style="margin-top: 2px; font-size: 8px;">
                 @if($certificados->count() > 0)
                     el código de verificación: <span class="negrita">{{ $certificados->first()->codigo_verificacion ?? 'CV001' }}</span> 
                     y el Número de Certificado: <span class="negrita">{{ $certificados->first()->numero_certificado ?? 'NC001' }}</span>
