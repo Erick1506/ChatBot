@@ -23,7 +23,7 @@
         
         /* CONTENEDOR PRINCIPAL (HOJA A4) */
         .page-container {
-            width: 21cm;
+            width: 18cm;
             min-height: 29.7cm;
             height: 29.7cm; /* Altura fija */
             background: white;
@@ -31,7 +31,7 @@
             padding: 1.5cm 2cm 1.5cm 2cm; /* Reducido padding superior e inferior */
             position: relative;
             overflow: hidden;
-            width: 70%;
+            /*width: 80%;*/
         }
         
         /* LOGO - MÁS PEQUEÑO */
