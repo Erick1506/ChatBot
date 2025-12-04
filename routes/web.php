@@ -11,7 +11,7 @@ Route::get('/preview-certificado', function () {
     // ---- DATOS DE PRUEBA ----
     $constructor = Empresa::first();
     $certificados = CertificadoFIC::limit(3)->get();
-    $total = $certificados->sum('valor_pago');
+    $total = $certificados->sum('valor_pagado');
     $fecha_emision = Carbon::now();
 
     return view('certificados.plantilla', compact(

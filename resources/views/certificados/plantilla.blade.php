@@ -322,10 +322,10 @@
         <div class="certifica-title">CERTIFICA:</div>
         
         <!-- CONTENIDO PRINCIPAL -->
-        <div class="intro-paragraph">
+       <div class="intro-paragraph">
             @if($certificados->count() > 0)
-                Que el constructor con razón social <span class="negrita">{{ $certificados->first()->constructor_razon_social }}</span> 
-                identificado con el NIT <span class="negrita">{{ $certificados->first()->constructor_nit }}</span>, 
+                Que el constructor con razón social <span class="negrita">{{ $certificados->first()->nombre_empresa }}</span> 
+                identificado con el NIT <span class="negrita">{{ $certificados->first()->nitempresa }}</span>, 
                 por concepto de Fondo Nacional de Formación Profesional de la Industria de la Construcción FIC, 
                 realizó a través del botón electrónico de pagos las siguientes transacciones:
             @else
@@ -356,13 +356,13 @@
                 <tbody>
                     @forelse($certificados as $certificado)
                     <tr>
-                        <td style="font-size: 8px;">{{ $certificado->licencia_contrato ?? 'N/A' }}</td>
+                        <td style="font-size: 8px;">{{ $certificado->nro_licencia_contrato ?? 'N/A' }}</td>
                         <td style="font-size: 8px;">{{ $certificado->nombre_obra ?? '' }}</td>
-                        <td style="font-size: 8px;">{{ $certificado->ciudad_ejecucion ?? '' }}</td>
-                        <td style="font-size: 8px;">${{ number_format($certificado->valor_pago ?? 0, 0, ',', '.') }}</td>
-                        <td style="font-size: 8px;">{{ $certificado->periodo ?? '' }}</td>
-                        <td style="font-size: 8px;">{{ optional($certificado->fecha)->format('d/m/Y') ?? '' }}</td>
-                        <td style="font-size: 8px;">{{ $certificado->ticket ?? '' }}</td>
+                        <td style="font-size: 8px;">{{ $certificado->ciudad_obra ?? '' }}</td>
+                        <td style="font-size: 8px;">${{ number_format($certificado->valor_pagado ?? 0, 0, ',', '.') }}</td>
+                        <td style="font-size: 8px;">{{ $certificado->periodo_pagado ?? '' }}</td>
+                        <td style="font-size: 8px;">{{ $certificado->fecha_formateada ?? '' }}</td>
+                        <td style="font-size: 8px;">{{ $certificado->ticketid ?? '' }}</td>
                     </tr>
                     @empty
                     <tr>
@@ -414,11 +414,7 @@
         
         <!-- GENERADO POR (OPCIONAL - SE PUEDE REMOVER SI NO CABE) -->
         <div class="content-section generado-por remove-if-needed">
-            @if($certificados->count() > 0)
-                Generado por: <span class="negrita">{{ $certificados->first()->generado_por ?? 'Sistema SENA' }}</span>
-            @else
-                Generado por: <span class="negrita">Sistema SENA</span>
-            @endif
+            Generado por: <span class="negrita">{{ $nombre_usuario ?? 'Sistema SENA' }}</span>
         </div>
         
         <!-- CÓDIGO DE VERIFICACIÓN -->

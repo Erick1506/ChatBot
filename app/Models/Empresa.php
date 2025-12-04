@@ -29,7 +29,7 @@ class Empresa extends Model
     // Relación con certificados
     public function certificados()
     {
-        return $this->hasMany(CertificadoFIC::class, 'constructor_nit', 'nit');
+        return $this->hasMany(CertificadoFIC::class, 'nitempresa', 'nit');
     }
     
     // Método para validar contraseña
