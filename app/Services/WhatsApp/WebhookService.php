@@ -65,11 +65,26 @@ class WebhookService
 
         Log::info('Webhook data recibida:', $data);
 
-        // Manejar eventos de "statuses"
-        if (!empty($data['entry'][0]['changes'][0]['value']['statuses'][0])) {
-            $status = $data['entry'][0]['changes'][0]['value']['statuses'][0];
-            Log::info('🔔 Status event recibido:', $status);
-            return response('Status received', 200);
+        // ✅ IMPORTANTE: Detectar y filtrar eventos duplicados de estado
+        $entry = $data['entry'][0] ?? null;
+        $changes = $entry['changes'][0] ?? null;
+        
+        // Si es evento de estado, ignorar inmediatamente
+        if (isset($changes['value']['statuses'])) {
+            Log::info('🔔 Status event recibido, ignorando.');
+            return response()->json(['status' => 'ignored_status'], 200);
+        }
+        
+        // Verificar que haya mensajes
+        if (!isset($changes['value']['messages'])) {
+            Log::info('📭 No hay mensajes en el webhook');
+            return response()->json(['status' => 'no_messages'], 200);
+        }
+        
+        $message = $changes['value']['messages'][0] ?? null;
+        if (!$message) {
+            Log::info('📭 Mensaje no encontrado en estructura');
+            return response()->json(['status' => 'no_message_data'], 200);
         }
 
         // Extraer mensaje
@@ -79,8 +94,27 @@ class WebhookService
             return response('No message found', 200);
         }
 
+        // ✅ Agregar validación contra duplicados
+        $messageId = $message['id'] ?? null;
+        if ($messageId) {
+            $cacheKey = 'whatsapp_msg_' . $messageId;
+            if (cache()->has($cacheKey)) {
+                Log::info('🔄 Mensaje duplicado detectado, ignorando: ' . $messageId);
+                return response()->json(['status' => 'duplicate_ignored'], 200);
+            }
+            // Almacenar por 30 segundos
+            cache()->put($cacheKey, true, 30);
+        }
+
         // Procesar mensaje
-        $this->processMessageAction->execute($messageData);
+        try {
+            $this->processMessageAction->execute($messageData);
+        } catch (\Exception $e) {
+            Log::error('❌ Error procesando mensaje: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            // NO devuelvas error 500, devuelve 200 para que WhatsApp no reintente
+            return response()->json(['status' => 'error_handled'], 200);
+        }
 
         return response('Mensaje recibido', 200);
     }

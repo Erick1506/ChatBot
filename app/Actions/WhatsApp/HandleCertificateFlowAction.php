@@ -129,8 +129,19 @@ class HandleCertificateFlowAction
                 return;
             }
 
-            // Generar PDF
-            $pdfPath = $this->certificateService->generatePDF($certificados, $type);
+            // OBTENER INFORMACIÓN DEL USUARIO PARA EL PDF
+            $userState = $this->stateService->getState($userPhone);
+            $nombreUsuario = $userState['representante_legal'] ?? 'Usuario WhatsApp';
+            
+            // Crear objeto con datos de empresa para el PDF
+            $empresaData = (object)[
+                'Usuario' => $nombreUsuario,
+                'representante_legal' => $nombreUsuario,
+                'nit' => $data['nit']
+            ];
+
+            // Generar PDF con 3 PARÁMETROS
+            $pdfPath = $this->certificateService->generatePDF($certificados, $type, $empresaData);
             $fileName = $this->certificateService->generateFileName($certificados->first(), $type);
 
             // Enviar documento
@@ -140,7 +151,6 @@ class HandleCertificateFlowAction
             $this->messageService->sendText($userPhone, "¿Necesitas algo más? Escribe *MENU* para ver las opciones.");
 
             // Actualizar estado
-            $userState = $this->stateService->getState($userPhone);
             $this->stateService->updateState($userPhone, [
                 'step' => 'main_menu',
                 'authenticated' => true,
