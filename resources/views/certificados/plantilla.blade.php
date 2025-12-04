@@ -431,8 +431,8 @@
                     el código de verificación: <span class="negrita">{{ $certificados->first()->codigo_verificacion ?? 'CV001' }}</span> 
                     y el Número de Certificado: <span class="negrita">{{ $certificados->first()->numero_certificado ?? 'NC001' }}</span>
                 @else
-                    el código de verificación: <span class="negrita">CV001</span> 
-                    y el Número de Certificado: <span class="negrita">NC001</span>
+                    el código de verificación: <span class="negrita">#####</span> 
+                    y el Número de Certificado: <span class="negrita">#####</span>
                 @endif
             </p>
         </div>
