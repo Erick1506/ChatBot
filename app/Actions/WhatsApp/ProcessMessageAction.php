@@ -12,6 +12,7 @@ class ProcessMessageAction
 {
     private HandleAuthFlowAction $handleAuthFlowAction;
     private HandleCertificateFlowAction $handleCertificateFlowAction;
+    private HandleConsultaCertificadosAction $handleConsultaCertificadosAction;
     
     public function __construct(
         private MessageService $messageService,
@@ -28,6 +29,13 @@ class ProcessMessageAction
         );
         
         $this->handleCertificateFlowAction = new HandleCertificateFlowAction(
+            $this->messageService,
+            $this->stateService,
+            $this->templateService,
+            app()->make(\App\Services\WhatsApp\CertificateService::class)  // Usar app() helper
+        );
+        
+        $this->handleConsultaCertificadosAction = new HandleConsultaCertificadosAction(
             $this->messageService,
             $this->stateService,
             $this->templateService,
@@ -81,6 +89,13 @@ class ProcessMessageAction
             return;
         }
 
+        // Flujos de consulta de certificados
+        if ($this->stateService->isInConsultaCertificadosFlow($userPhone)) {
+            Log::info("Estado de consulta de certificados detectado");
+            $this->handleConsultaCertificadosAction->execute($userPhone, $normalized['lower'], $userState);
+            return;
+        }
+
         // Comandos globales / menú
         $command = $this->userFlowService->detectCommand($normalized);
         
@@ -119,18 +134,34 @@ class ProcessMessageAction
             return;
         }
 
-        if (str_contains(strtolower($messageText), 'consultar') || str_contains(strtolower($messageText), 'certificados')) {
+        if ($command === 'consultar_certificados') {
             Log::info("🔍 Usuario quiere consultar certificados generados");
             
-            // Crear instancia del action de consulta
-            $consultaAction = new HandleConsultaCertificadosAction(
-                $this->messageService,
-                $this->stateService,
-                $this->templateService,
-                new CertificateService() // O inyectarlo
-            );
+            // Verificar si el usuario está autenticado primero
+            if (!$userState || !isset($userState['authenticated']) || !$userState['authenticated']) {
+                Log::info("🔒 Usuario no autenticado, redirigiendo a autenticación");
+                $this->messageService->sendText($userPhone,
+                    "🔒 *Consulta de Certificados*\n\n" .
+                    "Para consultar tus certificados, primero debes autenticarte.\n\n" .
+                    "Escribe *MENU* y selecciona 'Generar Certificado' para autenticarte."
+                );
+                return;
+            }
             
-            $consultaAction->execute($from, $messageText, $userState);
+            // Verificar que tenga NIT
+            $nit = $userState['empresa_nit'] ?? null;
+            if (!$nit) {
+                Log::warning("❌ Usuario autenticado pero sin NIT para consultar certificados");
+                $this->messageService->sendText($userPhone,
+                    "❌ *Error en la consulta*\n\n" .
+                    "No se encontró información de empresa en tu perfil.\n" .
+                    "Por favor, autentícate nuevamente escribiendo *MENU*."
+                );
+                return;
+            }
+            
+            // Iniciar flujo de consulta
+            $this->handleConsultaCertificadosAction->execute($userPhone, 'consultar', $userState);
             return;
         }
 
