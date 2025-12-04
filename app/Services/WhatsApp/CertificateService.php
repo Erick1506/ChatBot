@@ -11,23 +11,23 @@ class CertificateService
     public function searchByTicket(string $nit, string $ticket)
     {
         Log::info("🔍 Buscando certificados por ticket - NIT: {$nit}, Ticket: {$ticket}");
-        return CertificadoFIC::where('constructor_nit', $nit)
-            ->where('ticket', $ticket)
+        return CertificadoFIC::where('NIT_EMPRESA', $nit)
+            ->where('TICKETID', $ticket)
             ->get();
     }
 
     public function searchByNit(string $nit)
     {
         Log::info("🔍 Buscando certificados por NIT: {$nit}");
-        return CertificadoFIC::where('constructor_nit', $nit)->get();
+        return CertificadoFIC::where('NIT_EMPRESA', $nit)->get();
     }
 
     public function searchByVigencia(string $nit, int $year)
     {
         Log::info("🔍 Buscando certificados por vigencia - NIT: {$nit}, Año: {$year}");
         $pattern = $year . '-%';
-        return CertificadoFIC::where('constructor_nit', $nit)
-            ->where('periodo', 'like', $pattern)
+        return CertificadoFIC::where('NIT_EMPRESA', $nit)
+            ->where('PERIODO_PAGADO', 'like', $pattern)
             ->get();
     }
 
@@ -38,7 +38,7 @@ class CertificateService
         $constructor = $certificados->first();
         $total = $certificados->sum('valor_pago');
 
-        Log::info("Constructor: {$constructor->constructor_razon_social}, Total: {$total}");
+        Log::info("Constructor: {$constructor->NOMBRE_EMPRESA}, Total: {$total}");
 
         $datos = [
             'certificados' => $certificados,
@@ -75,7 +75,7 @@ class CertificateService
     public function generateFileName($constructor, string $tipo): string
     {
         $fecha = now()->format('Y-m-d');
-        $nit = $constructor->constructor_nit;
+        $nit = $constructor->NIT_EMPRESA;
         $fileName = "Certificado_FIC_{$nit}_{$tipo}_{$fecha}.pdf";
         Log::info("Nombre de archivo generado: {$fileName}");
         return $fileName;

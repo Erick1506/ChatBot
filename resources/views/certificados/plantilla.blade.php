@@ -56,6 +56,15 @@
             font-size: 14px; /* Reducido de 16px */
             line-height: 1.1;
             margin-bottom: 2px;
+            padding: 10px;
+        }
+
+        .SENA {
+            font-size: 14px; /* Reducido de 16px */
+            line-height: 1.1;
+            margin-bottom: 2px;
+            padding: 18px;
+
         }
         
         .ministerio {
@@ -70,6 +79,8 @@
             font-size: 14px; /* Reducido de 16px */
             font-weight: bold;
             margin: 10px 0; /* Reducido */
+            padding: 12px;
+
         }
         
         /* PÁRRAFO DE INTRODUCCIÓN */
@@ -93,6 +104,7 @@
             border: 1px solid black;
             font-size: 8px; /* Reducido significativamente */
             table-layout: fixed;
+            padding: 10px;
         }
         
         th, td {
@@ -125,6 +137,7 @@
             padding: 0 5px;
             line-height: 1.1; /* Reducido */
             text-align: center;
+            padding: 10px;
         }
         
         .fecha-expedicion {
@@ -300,7 +313,8 @@
         
         <!-- ENCABEZADO -->
         <div class="header">
-            <h1 class="institucion">Servicio Nacional de Aprendizaje SENA</h1>
+            <h1 class="institucion">Servicio Nacional de Aprendizaje</h1>
+            <h1 class="SENA">SENA</h1>
             <p class="ministerio">MINISTERIO DE TRABAJO</p>
         </div>
         
@@ -371,8 +385,8 @@
         
         <!-- FECHA DE EXPEDICIÓN -->
         <div class="content-section fecha-expedicion">
-            Expedido por el SENA, a los <span class="negrita">{{ $fecha_emision->day ?? now()->day }}</span> 
-            (<span class="negrita">{{ $fecha_emision->day ?? now()->day }}</span>) días del mes de 
+            Expedido por el SENA, a los <span class="negrita">{{ numeroEnLetras($fecha_emision->day) }}</span> 
+            (<span class="negrita">{{ $fecha_emision->day }}</span>) días del mes de 
             <span class="negrita uppercase">{{ obtenerMesEspanol($fecha_emision->month ?? now()->month) }}</span> de 
             <span class="negrita">{{ $fecha_emision->year ?? now()->year }}</span>
         </div>
@@ -393,10 +407,8 @@
         
         <!-- EXPEDIDO POR -->
         <div class="content-section expedido-por">
-            @if($certificados->count() > 0)
-                Expedido por el Servicio Nacional de Aprendizaje – <span class="negrita">{{ $certificados->first()->regional_sena ?? 'BOGOTÁ' }}</span>
-            @else
-                Expedido por el Servicio Nacional de Aprendizaje – <span class="negrita">BOGOTÁ</span>
+            @if($certificados->count() > 0) 
+                Expedido por el Servicio Nacional de Aprendizaje – SENA, <span class="negrita">{{ $fecha_emision->format('Y-m-d') }}</span>
             @endif
         </div>
         
@@ -418,7 +430,7 @@
                 </a> 
                 enlace CONSULTAR CODIGO CERTIFICADO y digite:
             </p>
-            <p style="margin-top: 2px; font-size: 8px;">
+            <p style="margin-top: 10px; font-size: 8px;">
                 @if($certificados->count() > 0)
                     el código de verificación: <span class="negrita">{{ $certificados->first()->codigo_verificacion ?? 'CV001' }}</span> 
                     y el Número de Certificado: <span class="negrita">{{ $certificados->first()->numero_certificado ?? 'NC001' }}</span>
@@ -437,6 +449,7 @@
         <!-- NÚMERO DE PÁGINA -->
         <div class="page-number">Pág. 1</div>
     </div>
+
 </body>
 </html>
 
@@ -449,4 +462,43 @@ function obtenerMesEspanol($mes) {
     ];
     return $meses[$mes] ?? 'mes';
 }
+function numeroEnLetras($num)
+{
+    $numeros = [
+        1 => 'uno',
+        2 => 'dos',
+        3 => 'tres',
+        4 => 'cuatro',
+        5 => 'cinco',
+        6 => 'seis',
+        7 => 'siete',
+        8 => 'ocho',
+        9 => 'nueve',
+        10 => 'diez',
+        11 => 'once',
+        12 => 'doce',
+        13 => 'trece',
+        14 => 'catorce',
+        15 => 'quince',
+        16 => 'dieciséis',
+        17 => 'diecisiete',
+        18 => 'dieciocho',
+        19 => 'diecinueve',
+        20 => 'veinte',
+        21 => 'veintiuno',
+        22 => 'veintidós',
+        23 => 'veintitrés',
+        24 => 'veinticuatro',
+        25 => 'veinticinco',
+        26 => 'veintiséis',
+        27 => 'veintisiete',
+        28 => 'veintiocho',
+        29 => 'veintinueve',
+        30 => 'treinta',
+        31 => 'treinta y uno',
+    ];
+
+    return $numeros[$num] ?? $num;
+}
+
 ?>

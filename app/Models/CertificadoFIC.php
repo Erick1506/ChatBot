@@ -10,15 +10,15 @@ class CertificadoFIC extends Model
     
     protected $fillable = [
         'numero_orden',
-        'licencia_contrato',
-        'nombre_obra',
-        'ciudad_ejecucion',
-        'valor_pago',
-        'periodo',
-        'fecha',
-        'ticket',
-        'constructor_nit',
-        'constructor_razon_social',
+        'NRO_LICENCIA_CONTRATO',
+        'NOMBRE_OBRA',
+        'CIUDAD_OBRA',
+        'VALOR_PAGADO',
+        'PERIODO_PAGADO',
+        'FECHA_PAGO',
+        'TICKETID',
+        'NIT_EMPRESA',
+        'NOMBRE_EMPRESA',
         'codigo_verificacion',
         'numero_certificado',
         'regional_sena',
@@ -26,43 +26,28 @@ class CertificadoFIC extends Model
     ];
     
     protected $casts = [
-        'fecha' => 'date',
-        'valor_pago' => 'decimal:2'
+        'FECHA_PAGO' => 'date',
+        'VALOR_PAGADO' => 'decimal:2'
     ];
-    
-    // Scope para búsqueda por NIT
+
+    // Scopes corregidos
     public function scopePorNit($query, $nit)
     {
-        return $query->where('constructor_nit', $nit);
-    }
-    
-    // Scope para búsqueda por ticket
-    public function scopePorTicket($query, $ticket)
-    {
-        return $query->where('ticket', $ticket);
-    }
-    
-    // Scope para búsqueda por vigencia (año del periodo)
-    public function scopePorVigencia($query, $year)
-    {
-        return $query->where('periodo', 'like', $year . '-%');
-    }
-    
-    // Scope para búsqueda por periodo exacto
-    public function scopePorPeriodo($query, $periodo)
-    {
-        return $query->where('periodo', $periodo);
-    }
-    
-    // Scope para búsqueda por año de fecha
-    public function scopePorAnioFecha($query, $year)
-    {
-        return $query->whereYear('fecha', $year);
+        return $query->where('NIT_EMPRESA', $nit);
     }
 
-    // Validar usuario
-    public function empresa()
+    public function scopePorTicket($query, $ticket)
     {
-        return $this->belongsTo(empresa::class, 'constructor_nit', 'nit');
+        return $query->where('TICKETID', $ticket);
+    }
+
+    public function scopePorVigencia($query, $year)
+    {
+        return $query->where('PERIODO_PAGADO', 'like', $year . '-%');
+    }
+
+    public function scopePorAnioFecha($query, $year)
+    {
+        return $query->whereYear('FECHA_PAGO', $year);
     }
 }
