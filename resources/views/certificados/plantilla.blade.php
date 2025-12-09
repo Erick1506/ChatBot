@@ -23,7 +23,7 @@
         
         /* CONTENEDOR PRINCIPAL (HOJA A4) */
         .page-container {
-            width: 18cm;
+            width: 19cm;
             min-height: 29.7cm;
             height: 29.7cm; /* Altura fija */
             background: white;
@@ -430,10 +430,6 @@
                 @if($certificados->count() > 0)
                     el código de verificación: <span class="negrita">{{ $certificados->first()->codigo_verificacion ?? 'CV001' }}</span> 
                     y el Número de Certificado: <span class="negrita">{{ $certificados->first()->numero_certificado ?? 'NC001' }}</span>
-                @else
-                    el código de verificación: <span class="negrita">#####</span> 
-                    y el Número de Certificado: <span class="negrita">#####</span>
-                @endif
             </p>
         </div>
         
