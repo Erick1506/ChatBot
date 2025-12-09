@@ -6,13 +6,14 @@ class TemplateService
 {
     public function getMenu(bool $compact = false): string
     {
-        $msg = "🤖 *MENÚ PRINCIPAL - Chatbot FIC*\n\n";
-        $msg .= "Selecciona una opción escribiendo su nombre:\n\n";
+        $msg = "📌 *MENÚ PRINCIPAL - Chatbot FIC*\n\n";
+        $msg .= "Selecciona una opción escribiendo su nombre o número:\n\n";
         $msg .= "• *1* - Generar Certificado \n";
-        $msg .= "• *2* - Requisitos \n";
-        $msg .= "• *3* - Soporte \n";
-        $msg .= "• *4* - Registro \n\n";
-        $msg .= "Ejemplo: Escribe *Generar Certificado* para iniciar.";
+        $msg .= "• *2* - Consultar Certificados \n";
+        $msg .= "• *3* - Requisitos \n";
+        $msg .= "• *4* - Soporte \n";
+        $msg .= "• *5* - Registro \n\n";
+        $msg .= "Ejemplo: Escribe *Generar Certificado* o *1* para iniciar.";
 
         return $msg;
     }
@@ -43,6 +44,18 @@ class TemplateService
                "Escribe *MENU* para volver al inicio.";
     }
 
+    public function getConsultCertificateInfo(): string
+    {
+        return "🔍 *CONSULTAR CERTIFICADOS*\n\n" .
+               "Puedes consultar y descargar certificados que ya has generado.\n\n" .
+               "Para consultar, necesitas estar autenticado con tu usuario y contraseña.\n\n" .
+               "Una vez autenticado, podrás:\n" .
+               "• Ver tu historial de certificados\n" .
+               "• Descargar certificados anteriores\n" .
+               "• Ver estadísticas de uso\n\n" .
+               "Escribe *CONSULTAR* para comenzar o *MENU* para volver al inicio.";
+    }
+
     public function getCertificateOptions(): string
     {
         return "📄 *GENERAR CERTIFICADO FIC*\n\n" .
@@ -56,7 +69,7 @@ class TemplateService
     public function getAuthPrompt(): string
     {
         return "🔐 *VALIDACIÓN DE USUARIO*\n\n" .
-               "⚠️ *Debes validar tu información antes de generar un certificado.*\n\n" .
+               "⚠️ *Debes validar tu información antes de generar o consultar certificados.*\n\n" .
                "Por favor, ingresa tu *USUARIO*:";
     }
 
@@ -65,7 +78,7 @@ class TemplateService
         return "✅ *AUTENTICACIÓN EXITOSA*\n\n" .
                "Bienvenido *{$representanteLegal}*\n" .
                "📄 NIT: *{$nit}*\n\n" .
-               "Ahora puedes generar tu certificado.\n\n";
+               "Ahora puedes generar o consultar certificados.\n\n";
     }
 
     public function getUserNotFound(): string
@@ -114,7 +127,7 @@ class TemplateService
 
     public function getUnknownCommand(): string
     {
-        return "No entendí 🤔. Puedes escribir: *MENU* para ver las opciones, *Generar Certificado*, *Requisitos*, *Soporte* o *Registro*.";
+        return "No entendí 🤔. Puedes escribir: *MENU* para ver las opciones, *Generar Certificado*, *Consultar Certificados*, *Requisitos*, *Soporte* o *Registro*.";
     }
 
     public function getErrorSystem(): string
@@ -124,11 +137,127 @@ class TemplateService
 
     public function getNotAuthenticated(): string
     {
-        return "❌ Debes autenticarte primero para generar certificados.";
+        return "❌ Debes autenticarte primero para generar o consultar certificados.";
     }
 
     public function getCompanyInfoNotFound(): string
     {
         return "❌ Error: No se encontró información de la empresa. Por favor, autentícate nuevamente.";
+    }
+
+    public function getConsultCertificateList(array $certificados): string
+    {
+        if (empty($certificados)) {
+            return "📭 *No hay certificados generados*\n\nNo se encontraron certificados generados para tu empresa.\n\n" .
+                   "Genera un certificado nuevo escribiendo *Generar Certificado*.";
+        }
+
+        $msg = "📋 *Tus Certificados Generados*\n\n";
+        
+        foreach ($certificados as $index => $cert) {
+            $numero = $index + 1;
+            $fecha = $cert['fecha'] ?? 'Fecha no disponible';
+            $serial = $cert['serial'] ?? 'N/A';
+            
+            $msg .= "*{$numero}.* 📄 *{$serial}*\n";
+            $msg .= "   📅 {$fecha}\n";
+            
+            if (isset($cert['tipo'])) {
+                $tipo = match($cert['tipo']) {
+                    'nit_general' => 'General',
+                    'nit_ticket' => 'Ticket',
+                    'nit_vigencia' => 'Vigencia',
+                    default => $cert['tipo']
+                };
+                $msg .= "   🏷️ Tipo: {$tipo}\n";
+            }
+            
+            if (isset($cert['registros'])) {
+                $msg .= "   📊 {$cert['registros']} registros\n";
+            }
+            
+            if (isset($cert['valor_total'])) {
+                $msg .= "   💰 $" . number_format($cert['valor_total'], 0, ',', '.') . "\n";
+            }
+            
+            $msg .= "\n";
+        }
+        
+        $msg .= "Responde con el *número* del certificado que deseas descargar.\n";
+        $msg .= "Escribe *0* para volver al menú principal.";
+        
+        return $msg;
+    }
+
+    public function getCertificateDetails(array $certificado): string
+    {
+        $serial = $certificado['serial'] ?? 'N/A';
+        $fecha = $certificado['fecha'] ?? 'Fecha no disponible';
+        $tipo = $certificado['tipo'] ?? 'Desconocido';
+        $registros = $certificado['registros'] ?? 0;
+        $valorTotal = $certificado['valor_total'] ?? 0;
+        
+        $tipoTexto = match($tipo) {
+            'nit_general' => 'General',
+            'nit_ticket' => 'Ticket',
+            'nit_vigencia' => 'Vigencia',
+            default => $tipo
+        };
+        
+        return "✅ *Certificado seleccionado*\n\n" .
+               "🔢 *Serial:* {$serial}\n" .
+               "📅 *Fecha generación:* {$fecha}\n" .
+               "🏷️ *Tipo:* {$tipoTexto}\n" .
+               "📊 *Registros:* {$registros}\n" .
+               "💰 *Valor total:* $" . number_format($valorTotal, 0, ',', '.') . "\n\n" .
+               "¿Deseas descargar este certificado?\n\n" .
+               "Responde *SI* para confirmar o *NO* para cancelar.";
+    }
+
+    public function getDownloadConfirmed(string $serial): string
+    {
+        return "✅ *Certificado descargado*\n\n" .
+               "El certificado *{$serial}* ha sido descargado exitosamente.\n\n" .
+               "¿Necesitas algo más? Escribe *MENU* para ver las opciones.";
+    }
+
+    public function getDownloadCancelled(): string
+    {
+        return "❌ Descarga cancelada.\n\n" .
+               "Puedes seleccionar otro certificado o escribir *MENU* para volver al inicio.";
+    }
+
+    public function getNoCertificatesAvailable(): string
+    {
+        return "📭 *No hay certificados disponibles*\n\n" .
+               "No se encontraron certificados generados para tu empresa.\n\n" .
+               "Puedes generar uno nuevo seleccionando la opción *Generar Certificado*.";
+    }
+
+    public function getStatisticsInfo(array $estadisticas, string $nit): string
+    {
+        $msg = "📈 *Estadísticas de Certificados*\n\n";
+        $msg .= "🏢 NIT: *{$nit}*\n\n";
+        $msg .= "📄 *Total generados:* {$estadisticas['total']}\n";
+        $msg .= "📅 *Última semana:* {$estadisticas['ultima_semana']}\n";
+        $msg .= "💰 *Valor total:* $" . number_format($estadisticas['valor_total'], 0, ',', '.') . "\n\n";
+        
+        if (!empty($estadisticas['por_tipo'])) {
+            $msg .= "*Distribución por tipo:*\n";
+            foreach ($estadisticas['por_tipo'] as $tipo => $cantidad) {
+                $tipoTexto = match($tipo) {
+                    'nit_general' => 'General',
+                    'nit_ticket' => 'Ticket',
+                    'nit_vigencia' => 'Vigencia',
+                    default => $tipo
+                };
+                $msg .= "  • {$tipoTexto}: {$cantidad}\n";
+            }
+            $msg .= "\n";
+        }
+        
+        $msg .= "Escribe *CONSULTAR* para ver tus certificados o *MENU* para volver.";
+        
+        return $msg;
     }
 }
