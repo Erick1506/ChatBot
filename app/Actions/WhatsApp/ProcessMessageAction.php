@@ -24,8 +24,7 @@ class ProcessMessageAction
         $this->handleAuthFlowAction = new HandleAuthFlowAction(
             $this->messageService,
             $this->stateService,
-            $this->templateService,
-            app()->make(\App\Services\WhatsApp\AuthService::class)
+            $this->templateService
         );
         
         $this->handleCertificateFlowAction = new HandleCertificateFlowAction(
@@ -77,11 +76,15 @@ class ProcessMessageAction
         $isAuthenticated = $userState['authenticated'] ?? false;
 
         Log::info("📱 Estado usuario: " . ($isAuthenticated ? "Autenticado" : "No autenticado"));
-        Log::info("📱 Comando detectado: " . json_encode($this->userFlowService->detectCommand($normalized)));
+        Log::info("📱 Paso actual: " . ($userState['step'] ?? 'Ninguno'));
 
-        // Si está en flujos de autenticación
-        if ($this->stateService->isInAuthFlow($userPhone)) {
-            Log::info("Estado de autenticación detectado — manejando por flujo de auth");
+        // VERIFICAR PRIMERO SI ESTÁ EN FLUJO DE AUTENTICACIÓN
+        // Esta es la clave: verificar si el paso actual está relacionado con autenticación
+        $currentStep = $userState['step'] ?? '';
+        $authSteps = ['auth_username', 'awaiting_username', 'auth_password', 'awaiting_password'];
+        
+        if (in_array($currentStep, $authSteps)) {
+            Log::info("🔐 Estado de autenticación detectado ({$currentStep}) — manejando por flujo de auth");
             $this->handleAuthFlowAction->execute($userPhone, $normalized['raw'], $userState);
             return;
         }
@@ -223,7 +226,7 @@ class ProcessMessageAction
 
         // Comando: cerrar sesión
         if ($command === 'cerrar_sesion') {
-            $this->handleLogout($userPhone, $userState);
+            $this->handleAuthFlowAction->logout($userPhone);
             return;
         }
 
@@ -285,43 +288,21 @@ class ProcessMessageAction
 
         // Si no se reconoce
         Log::info("❓ No se reconoció comando global, enviando ayuda corta");
-        $this->messageService->sendText($userPhone, 
-            "🤔 *No entendí*\n\n" .
-            "Comandos disponibles:\n\n" .
-            "• *MENU* - Ver opciones principales\n" .
-            "• *1* o *GENERAR CERTIFICADO*\n" .
-            "• *2* o *CONSULTAR CERTIFICADOS*\n" .
-            "• *3* o *REQUISITOS*\n" .
-            "• *4* o *SOPORTE*\n" .
-            "• *5* o *AUTENTICAR*\n" .
-            "• *6* o *REGISTRO*\n" .
-            "• *CERRAR SESION* (si estás autenticado)"
-        );
-    }
-
-    private function handleLogout(string $userPhone, array $userState): void
-    {
-        $isAuthenticated = $userState['authenticated'] ?? false;
         
-        if ($isAuthenticated) {
-            $userName = $userState['representante_legal'] ?? $userState['nombre_contacto'] ?? 'Usuario';
-            
-            Log::info("🚪 Usuario cerrando sesión: {$userPhone}");
-            
+        // Verificar si está en algún flujo especial
+        if (!empty($currentStep)) {
             $this->messageService->sendText($userPhone,
-                "✅ *SESIÓN CERRADA*\n\n" .
-                "Adiós *{$userName}*. Has cerrado sesión exitosamente.\n\n" .
-                "Para usar las funciones de certificados, deberás autenticarte nuevamente."
+                "🤔 *No entendí*\n\n" .
+                "Parece que estás en medio de un proceso.\n\n" .
+                "Si deseas cancelar, escribe *MENU* para volver al inicio.\n" .
+                "O continúa con el proceso actual."
             );
-            
-            // Limpiar estado completamente
-            $this->stateService->clearState($userPhone);
-            
         } else {
-            $this->messageService->sendText($userPhone,
-                "ℹ️ *No estás autenticado*\n\n" .
-                "Para cerrar sesión primero necesitas iniciar sesión.\n\n" .
-                "Escribe *5* o *AUTENTICAR* para iniciar sesión."
+            $this->messageService->sendText($userPhone, 
+                "🤔 *No entendí*\n\n" .
+                "Comandos disponibles:\n\n" .
+                "• *MENU* - Ver opciones principales\n" .
+                "• *CERRAR SESION* (si estás autenticado)"
             );
         }
     }

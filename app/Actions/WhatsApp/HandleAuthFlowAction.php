@@ -232,9 +232,6 @@ class HandleAuthFlowAction
         }
     }
 
-    /**
-     * Método para cerrar sesión
-     */
     public function logout(string $userPhone): void
     {
         $userState = $this->stateService->getState($userPhone);
