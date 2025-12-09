@@ -17,7 +17,7 @@ class HandleCertificateFlowAction
         private StateService $stateService,
         private TemplateService $templateService
     ) {
-        // Crear CertificateService manualmente (ok si no tiene dependencias)
+        // Crear CertificateService manualmente
         $this->certificateService = new CertificateService();
     }
 
@@ -64,17 +64,17 @@ class HandleCertificateFlowAction
 
     private function handleCertificateType(string $userPhone, string $messageText, string $nit): void
     {
-        if (str_contains(strtolower($messageText), 'ticket')) {
+        if (str_contains($messageText, 'ticket')) {
             Log::info("🎫 Usuario seleccionó Ticket");
             $this->stateService->updateState($userPhone, [
                 'step' => 'awaiting_ticket',
                 'type' => 'ticket'
             ]);
             $this->messageService->sendText($userPhone, $this->templateService->getCertificatePrompt('ticket'));
-        } elseif (str_contains(strtolower($messageText), 'nit') && !str_contains(strtolower($messageText), 'vigencia')) {
+        } elseif (str_contains($messageText, 'nit') && !str_contains($messageText, 'vigencia')) {
             Log::info("🏢 Usuario seleccionó NIT - Generando certificado general");
             $this->generateCertificate($userPhone, 'nit_general', ['nit' => $nit]);
-        } elseif (str_contains(strtolower($messageText), 'vigencia') || str_contains(strtolower($messageText), 'vigente')) {
+        } elseif (str_contains($messageText, 'vigencia') || str_contains($messageText, 'vigente')) {
             Log::info("📅 Usuario seleccionó Vigencia");
             $this->stateService->updateState($userPhone, [
                 'step' => 'awaiting_year',
@@ -100,7 +100,7 @@ class HandleCertificateFlowAction
     {
         Log::info("📅 Usuario ingresando año: {$messageText}");
         $year = intval(preg_replace('/[^0-9]/','',$messageText));
-
+        
         if (!$this->certificateService->validateYear($year)) {
             $yearRange = $this->certificateService->getYearRange();
             Log::warning("❌ Año fuera de rango: {$year}");
@@ -132,7 +132,7 @@ class HandleCertificateFlowAction
             // OBTENER INFORMACIÓN DEL USUARIO PARA EL PDF
             $userState = $this->stateService->getState($userPhone);
             $nombreUsuario = $userState['representante_legal'] ?? 'Usuario WhatsApp';
-
+            
             // Crear objeto con datos de empresa para el PDF
             $empresaData = (object)[
                 'Usuario' => $nombreUsuario,
@@ -140,22 +140,12 @@ class HandleCertificateFlowAction
                 'nit' => $data['nit']
             ];
 
-            // Generar PDF UNA SOLA VEZ y recuperar resultado
-            $pdfResult = $this->certificateService->generatePDF($certificados, $type, $empresaData);
+            // Generar PDF con 3 PARÁMETROS
+            $pdfPath = $this->certificateService->generatePDF($certificados, $type, $empresaData);
+            $fileName = $this->certificateService->generateFileName($certificados->first(), $type);
 
-            // $pdfResult es un array con file_path y file_name
-            $filePath = $pdfResult['file_path'] ?? null;
-            $fileName = $pdfResult['file_name'] ?? ($pdfResult['serial'] . '.pdf');
-
-            if (empty($filePath) || !file_exists($filePath)) {
-                Log::error("❌ PDF generado pero archivo no encontrado: {$filePath}");
-                $this->messageService->sendText($userPhone, $this->templateService->getErrorSystem());
-                $this->stateService->clearState($userPhone);
-                return;
-            }
-
-            // Enviar documento al usuario (ajusta sendDocument si tu firma es distinta)
-            $this->messageService->sendDocument($userPhone, $filePath, $fileName);
+            // Enviar documento
+            $this->messageService->sendDocument($userPhone, $pdfPath, $fileName);
 
             $this->messageService->sendText($userPhone, $this->templateService->getCertificateGenerated());
             $this->messageService->sendText($userPhone, "¿Necesitas algo más? Escribe *MENU* para ver las opciones.");
