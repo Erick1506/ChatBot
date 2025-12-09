@@ -10,14 +10,42 @@ use Illuminate\Support\Facades\Log;
 
 class HandleConsultaCertificadosAction
 {
+<<<<<<< HEAD
+=======
+    private HandleAuthFlowAction $handleAuthFlowAction;
+    private HandleCertificateFlowAction $handleCertificateFlowAction;
+    
+>>>>>>> 54f00eac319c0a97bc8db1a7a4fedd3e26e446b0
     public function __construct(
         private MessageService $messageService,
         private StateService $stateService,
         private TemplateService $templateService,
+<<<<<<< HEAD
         private CertificateService $certificateService
     ) {}
     
     public function execute(string $userPhone, string $messageText, array $userState): void
+=======
+        private UserFlowService $userFlowService
+    ) {
+        // Crear manualmente los Actions dependientes usando app()
+        $this->handleAuthFlowAction = new HandleAuthFlowAction(
+            $this->messageService,
+            $this->stateService,
+            $this->templateService,
+            app()->make(\App\Services\WhatsApp\AuthService::class)  // Usar app() helper
+        );
+        
+        $this->handleCertificateFlowAction = new HandleCertificateFlowAction(
+            $this->messageService,
+            $this->stateService,
+            $this->templateService,
+            app()->make(\App\Services\WhatsApp\CertificateService::class)  // Usar app() helper
+        );
+    }
+
+    public function execute(array $messageData): void
+>>>>>>> 54f00eac319c0a97bc8db1a7a4fedd3e26e446b0
     {
         Log::info("🔍 === CONSULTA CERTIFICADOS INICIADA ===");
         Log::info("Usuario: {$userPhone}, Paso: " . ($userState['step'] ?? 'none'));
@@ -68,6 +96,7 @@ class HandleConsultaCertificadosAction
             $this->stateService->clearState($userPhone);
             return;
         }
+<<<<<<< HEAD
         
         // Preparar lista de certificados
         $mensaje = "📋 *Tus Certificados Generados*\n\n";
@@ -182,6 +211,66 @@ class HandleConsultaCertificadosAction
                 "❌ *Respuesta no reconocida*\n\n" .
                 "Responde *SI* para confirmar o *NO* para cancelar."
             );
+=======
+
+        // Flujos de certificados
+        if ($this->stateService->isInCertificateFlow($userPhone)) {
+            Log::info("Estado activo detectado — manejando por flujo de certificado");
+            $this->handleCertificateFlowAction->execute($userPhone, $normalized['lower'], $userState);
+            return;
+        }
+
+        // Comandos globales / menú
+        $command = $this->userFlowService->detectCommand($normalized);
+        
+        if ($command === 'menu') {
+            Log::info("🤖 Comando MENU/HOLA recibido - suppressWelcome={$suppressWelcome}");
+            if (!$suppressWelcome) {
+                $this->messageService->sendText($userPhone, $this->templateService->getMenu());
+            } else {
+                $this->messageService->sendText($userPhone, $this->templateService->getMenu(true));
+            }
+            $this->stateService->updateState($userPhone, ['step' => 'main_menu']);
+            return;
+        }
+
+        if ($command === 'generar_certificado') {
+            Log::info("🤖 Usuario solicitó iniciar flujo de Generar Certificado");
+            $this->handleAuthFlowAction->startAuthentication($userPhone);
+            return;
+        }
+
+        if ($command === 'requisitos') {
+            Log::info("🤖 Usuario solicitó Requisitos");
+            $this->messageService->sendText($userPhone, $this->templateService->getRequirements());
+            return;
+        }
+
+        if ($command === 'soporte') {
+            Log::info("🤖 Usuario solicitó Soporte");
+            $this->messageService->sendText($userPhone, $this->templateService->getSupportInfo());
+            return;
+        }
+
+        if ($command === 'registro') {
+            Log::info("🤖 Usuario solicitó información de registro");
+            $this->messageService->sendText($userPhone, $this->templateService->getRegistrationInfo());
+            return;
+        }
+
+        if (str_contains(strtolower($messageText), 'consultar') || str_contains(strtolower($messageText), 'certificados')) {
+            Log::info("🔍 Usuario quiere consultar certificados generados");
+            
+            // Crear instancia del action de consulta
+            $consultaAction = new HandleConsultaCertificadosAction(
+                $this->messageService,
+                $this->stateService,
+                $this->templateService,
+                new CertificateService() // O inyectarlo
+            );
+            
+            $consultaAction->execute($from, $messageText, $userState);
+>>>>>>> 54f00eac319c0a97bc8db1a7a4fedd3e26e446b0
             return;
         }
         
