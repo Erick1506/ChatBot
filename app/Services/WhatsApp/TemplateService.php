@@ -18,7 +18,7 @@ class TemplateService
         $msg .= "• *2* - Consultar Certificados\n";
         $msg .= "• *3* - Requisitos\n";
         $msg .= "• *4* - Soporte\n";
-        $msg .= "🔐 *5* - Autenticarse\n";
+        $msg .= "• *5* - Autenticarse\n";
         $msg .= "• *6* - Registro\n\n";
         
         if (!$compact) {
@@ -65,8 +65,8 @@ class TemplateService
     {
         return "📞 *SOPORTE TÉCNICO*\n\n" .
                "Para asistencia técnica contacta:\n\n" .
-               "📧 Email: soporte@sena.edu.co\n" .
-               "🌐 Web: www.sena.edu.co\n\n" .
+               "• Email: soporte@sena.edu.co\n" .
+               "• Web: www.sena.edu.co\n\n" .
                "Escribe *MENU* para volver al inicio.";
     }
 
@@ -74,7 +74,7 @@ class TemplateService
     {
         return "📝 *REGISTRO DE NUEVO USUARIO*\n\n" .
                "Para registrarte en nuestro sistema, debes ir a la pagina de oficial:\n\n" .
-               "🌐 *Web:* www.fic.sena.edu.co/registro\n\n" .
+               "• *Web:* www.fic.sena.edu.co/registro\n\n" .
                "Escribe *MENU* para volver al inicio.";
     }
 
@@ -111,7 +111,7 @@ class TemplateService
     {
         return "✅ *AUTENTICACIÓN EXITOSA*\n\n" .
                "Bienvenido *{$representanteLegal}*\n" .
-               "📄 NIT: *{$nit}*\n\n" .
+               "• NIT: *{$nit}*\n\n" .
                "Ahora puedes generar o consultar certificados.\n\n";
     }
 
@@ -134,10 +134,10 @@ class TemplateService
     {
         switch ($type) {
             case 'ticket':
-                return "🎫 *Certificado por TICKET*\n\nPor favor ingresa el número de *TICKET*:";
+                return "• *Certificado por TICKET*\n\nPor favor ingresa el número de *TICKET*:";
             case 'vigencia':
                 $yearRange = app(CertificateService::class)->getYearRange();
-                return "📅 *Certificado por VIGENCIA*\n\nIngresa el *AÑO* de la vigencia (ejemplo: 2025). Solo se permiten 15 años atrás desde el actual ({$yearRange['min']} - {$yearRange['max']}).";
+                return "• *Certificado por VIGENCIA*\n\nIngresa el *AÑO* de la vigencia (ejemplo: 2025). Solo se permiten 15 años atrás desde el actual ({$yearRange['min']} - {$yearRange['max']}).";
             default:
                 return "";
         }

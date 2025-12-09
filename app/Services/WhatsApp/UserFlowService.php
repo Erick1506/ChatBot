@@ -51,31 +51,42 @@ class UserFlowService
             return null;
         }
         
+        // Primero verificar números específicos
+        if ($text === '1' || $text === 'generar') {
+            return 'generar_certificado';
+        }
+        
+        if ($text === '2' || $text === 'consultar') {
+            return 'consultar_certificados';
+        }
+        
+        if ($text === '3' || str_contains($text, 'requisito')) {
+            return 'requisitos';
+        }
+        
+        if ($text === '4' || str_contains($text, 'soporte')) {
+            return 'soporte';
+        }
+        
+        if ($text === '5' || str_contains($text, 'autenticar') || str_contains($text, 'login') || str_contains($text, 'sesion')) {
+            return 'autenticar';
+        }
+        
+        if ($text === '6' || str_contains($text, 'registro') || str_contains($text, 'inscribir') || str_contains($text, 'registrarse')) {
+            return 'registro';
+        }
+        
+        if (str_contains($text, 'cerrar sesion') || str_contains($text, 'logout') || str_contains($text, 'salir')) {
+            return 'cerrar_sesion';
+        }
+        
         // Comandos para menú principal
         if (str_contains($text, 'menu') || 
             str_contains($text, 'hola') || 
             str_contains($text, 'inicio') ||
             str_contains($text, 'opciones') ||
-            $text === 'hi' || $text === 'hello' ||
-            $text === '1' || $text === '2' || $text === '3' || $text === '4' || $text === '5') {
-            
-            // Si escribe un número directamente, mapearlo
-            if ($text === '1' || str_contains($text, 'generar')) {
-                return 'generar_certificado';
-            }
-            if ($text === '2' || str_contains($text, 'consultar')) {
-                return 'consultar_certificados';
-            }
-            if ($text === '3' || str_contains($text, 'requisito')) {
-                return 'requisitos';
-            }
-            if ($text === '4' || str_contains($text, 'soporte')) {
-                return 'soporte';
-            }
-            if ($text === '5' || str_contains($text, 'registro')) {
-                return 'registro';
-            }
-            
+            str_contains($text, 'ayuda') ||
+            $text === 'hi' || $text === 'hello') {
             return 'menu';
         }
         
@@ -95,31 +106,6 @@ class UserFlowService
             str_contains($text, 'anteriores') ||
             str_contains($text, 'descargar')) {
             return 'consultar_certificados';
-        }
-        
-        // Comando para requisitos
-        if (str_contains($text, 'requisito') || 
-            str_contains($text, 'requerimiento') ||
-            str_contains($text, 'necesito') ||
-            str_contains($text, 'como funciona')) {
-            return 'requisitos';
-        }
-        
-        // Comando para soporte
-        if (str_contains($text, 'soporte') || 
-            str_contains($text, 'ayuda') ||
-            str_contains($text, 'problema') ||
-            str_contains($text, 'error') ||
-            str_contains($text, 'contacto')) {
-            return 'soporte';
-        }
-        
-        // Comando para registro
-        if (str_contains($text, 'registro') || 
-            str_contains($text, 'inscribir') ||
-            str_contains($text, 'registrarse') ||
-            str_contains($text, 'afiliar')) {
-            return 'registro';
         }
         
         return null;
