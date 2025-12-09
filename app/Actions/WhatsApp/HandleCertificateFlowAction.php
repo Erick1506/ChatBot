@@ -142,7 +142,7 @@ class HandleCertificateFlowAction
 
             // Generar PDF con 3 PARÁMETROS
             $pdfPath = $this->certificateService->generatePDF($certificados, $type, $empresaData);
-            $fileName = $this->certificateService->generateFileName($certificados->first(), $type);
+            $resultadoPDF = $this->certificateService->generatePDF($certificados, $type, $empresaData);
 
             // Enviar documento
             $this->messageService->sendDocument($userPhone, $pdfPath, $fileName);
