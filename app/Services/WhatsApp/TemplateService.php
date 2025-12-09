@@ -4,18 +4,52 @@ namespace App\Services\WhatsApp;
 
 class TemplateService
 {
+    // Agrega estos métodos a tu TemplateService existente:
+
     public function getMenu(bool $compact = false): string
     {
         $msg = "📌 *MENÚ PRINCIPAL - Chatbot FIC*\n\n";
-        $msg .= "Selecciona una opción escribiendo su nombre o número:\n\n";
-        $msg .= "• *1* - Generar Certificado \n";
-        $msg .= "• *2* - Consultar Certificados \n";
-        $msg .= "• *3* - Requisitos \n";
-        $msg .= "• *4* - Soporte \n";
-        $msg .= "• *5* - Registro \n\n";
-        $msg .= "Ejemplo: Escribe *Generar Certificado* o *1* para iniciar.";
-
+        
+        if (!$compact) {
+            $msg .= "¡Bienvenido! Selecciona una opción:\n\n";
+        }
+        
+        $msg .= "• *1* - Generar Certificado\n";
+        $msg .= "• *2* - Consultar Certificados\n";
+        $msg .= "• *3* - Requisitos\n";
+        $msg .= "• *4* - Soporte\n";
+        $msg .= "🔐 *5* - Autenticarse\n";
+        $msg .= "• *6* - Registro\n\n";
+        
+        if (!$compact) {
+            $msg .= "🔒 *Nota:* Las opciones 1 y 2 requieren autenticación.\n";
+            $msg .= "Usa la opción *5* para autenticarte primero.\n\n";
+        }
+        
+        $msg .= "Escribe el número o nombre de la opción.";
+        
         return $msg;
+    }
+
+    // Método para cierre de sesión
+    public function getLogoutMessage(string $userName = 'Usuario'): string
+    {
+        return "✅ *SESIÓN CERRADA*\n\n" .
+            "Adiós *{$userName}*. Has cerrado sesión exitosamente.\n\n" .
+            "Para usar las funciones de certificados, deberás autenticarte nuevamente.\n\n" .
+            "Escribe *MENU* para ver las opciones.";
+    }
+
+    // Método para usuario ya autenticado
+    public function getAlreadyAuthenticated(string $userName, string $nit): string
+    {
+        return "✅ *YA ESTÁS AUTENTICADO*\n\n" .
+            "Hola *{$userName}* (NIT: *{$nit}*)\n\n" .
+            "Puedes usar todas las funciones:\n" .
+            "• Escribe *1* para Generar Certificado\n" .
+            "• Escribe *2* para Consultar Certificados\n" .
+            "• Escribe *CERRAR SESION* para salir\n" .
+            "• Escribe *MENU* para ver todas las opciones";
     }
 
     public function getRequirements(): string
@@ -137,7 +171,12 @@ class TemplateService
 
     public function getNotAuthenticated(): string
     {
-        return "❌ Debes autenticarte primero para generar o consultar certificados.";
+        return "❌ *Debes autenticarte primero*\n\n" .
+            "Para generar o consultar certificados necesitas iniciar sesión.\n\n" .
+            "📋 *Opciones disponibles:*\n" .
+            "• Escribe *AUTENTICAR* para iniciar sesión\n" .
+            "• Escribe *MENU* para ver todas las opciones\n" .
+            "• Escribe *REGISTRO* si no tienes cuenta\n\n";
     }
 
     public function getCompanyInfoNotFound(): string
@@ -237,10 +276,10 @@ class TemplateService
     public function getStatisticsInfo(array $estadisticas, string $nit): string
     {
         $msg = "📈 *Estadísticas de Certificados*\n\n";
-        $msg .= "🏢 NIT: *{$nit}*\n\n";
-        $msg .= "📄 *Total generados:* {$estadisticas['total']}\n";
-        $msg .= "📅 *Última semana:* {$estadisticas['ultima_semana']}\n";
-        $msg .= "💰 *Valor total:* $" . number_format($estadisticas['valor_total'], 0, ',', '.') . "\n\n";
+        $msg .= " NIT: *{$nit}*\n\n";
+        $msg .= " *Total generados:* {$estadisticas['total']}\n";
+        $msg .= " *Última semana:* {$estadisticas['ultima_semana']}\n";
+        $msg .= " *Valor total:* $" . number_format($estadisticas['valor_total'], 0, ',', '.') . "\n\n";
         
         if (!empty($estadisticas['por_tipo'])) {
             $msg .= "*Distribución por tipo:*\n";
