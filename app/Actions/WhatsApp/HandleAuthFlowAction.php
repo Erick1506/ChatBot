@@ -5,228 +5,624 @@ namespace App\Actions\WhatsApp;
 use App\Services\WhatsApp\MessageService;
 use App\Services\WhatsApp\StateService;
 use App\Services\WhatsApp\TemplateService;
-use App\Services\WhatsApp\AuthService;
+use App\Services\WhatsApp\CertificateService;
+use App\Models\Empresa;
 use Illuminate\Support\Facades\Log;
 
-class HandleAuthFlowAction
+class HandleCertificateFlowAction
 {
-    private AuthService $authService;
-    
     public function __construct(
         private MessageService $messageService,
         private StateService $stateService,
-        private TemplateService $templateService
-    ) {
-        // Crear AuthService manualmente
-        $this->authService = new AuthService();
-    }
-
-    public function startAuthentication(string $userPhone): void
-    {
-        Log::info("🔐 Iniciando autenticación para usuario: {$userPhone}");
-        $this->messageService->sendText($userPhone, $this->templateService->getAuthPrompt());
-        $this->stateService->updateState($userPhone, [
-            'step' => 'auth_username',
-            'authenticated' => false
-        ]);
-    }
+        private TemplateService $templateService,
+        private CertificateService $certificateService
+    ) {}
 
     public function execute(string $userPhone, string $messageText, array $userState): void
     {
-        Log::info("=== HANDLE AUTH FLOW INICIADO ===");
+        Log::info("=== HANDLE CERTIFICATE FLOW INICIADO ===");
         Log::info("Paso actual: " . ($userState['step'] ?? 'none'));
         Log::info("Mensaje: {$messageText}");
+        Log::info("Estado completo: " . json_encode($userState));
+
+        // Verificación MÁS robusta de autenticación
+        if (!isset($userState['authenticated']) || !$userState['authenticated'] || 
+            empty($userState['empresa_nit']) || empty($userState['representante_legal'])) {
+            
+            Log::warning("❌ Usuario no autenticado o datos incompletos");
+            Log::warning("Estado recibido: " . json_encode($userState));
+            
+            $this->messageService->sendText($userPhone, $this->templateService->getNotAuthenticated());
+            
+            // Limpiar estado inconsistente
+            $this->stateService->clearState($userPhone);
+            return;
+        }
+
+        $nit = $userState['empresa_nit'] ?? null;
+        if (!$nit) {
+            Log::error("❌ No se encontró NIT en el estado del usuario autenticado");
+            $this->messageService->sendText($userPhone, $this->templateService->getCompanyInfoNotFound());
+            return;
+        }
 
         $step = $userState['step'] ?? '';
 
         switch ($step) {
-            case 'auth_username':
-                Log::info("👤 Usuario ingresando username: {$messageText}");
-                $this->processUsername($userPhone, $messageText, $userState);
+            case 'choosing_certificate_type':
+                $this->handleCertificateType($userPhone, $messageText, $nit, $userState);
                 break;
 
-            case 'auth_password':
-                Log::info("🔐 Usuario ingresando password");
-                $this->processPassword($userPhone, $messageText, $userState);
+            case 'awaiting_ticket':
+                $this->handleTicket($userPhone, $messageText, $nit, $userState);
+                break;
+
+            case 'awaiting_year':
+                $this->handleYear($userPhone, $messageText, $nit, $userState);
+                break;
+
+            case 'consulting_certificates':
+                $this->handleConsultingCertificates($userPhone, $messageText, $nit, $userState);
+                break;
+
+            case 'confirm_download':
+                $this->handleConfirmDownload($userPhone, $messageText, $nit, $userState);
                 break;
 
             default:
-                Log::info("🔀 Estado de auth no reconocido, reiniciando");
-                $this->startAuthentication($userPhone);
+                Log::info("🔀 Estado no reconocido, enviando menú de certificados");
+                $this->showCertificateMenu($userPhone, $nit, $userState);
                 break;
         }
     }
 
-    private function processUsername(string $userPhone, string $username, array $userState): void
+    private function showCertificateMenu(string $userPhone, string $nit, array $userState): void
     {
-        // Si el usuario escribe "atras" o "menu", volver al menú principal
-        $lowerUsername = strtolower(trim($username));
-        if (in_array($lowerUsername, ['atras', 'menu', 'cancelar', 'volver'])) {
-            Log::info("🔙 Usuario cancelando autenticación");
-            $this->messageService->sendText($userPhone, 
-                "❌ Autenticación cancelada.\n\n" .
-                "Escribe *MENU* para ver las opciones."
-            );
-            $this->stateService->clearState($userPhone);
-            return;
-        }
-
-        $empresa = $this->authService->validateUsername($username);
-
-        if (!$empresa) {
-            $this->messageService->sendText($userPhone, $this->templateService->getUserNotFound());
-            $this->stateService->clearState($userPhone);
-            return;
-        }
-
-        Log::info("✅ Usuario encontrado: " . $empresa->representante_legal);
-
-        $this->messageService->sendText($userPhone, 
-            "✅ *Usuario encontrado*\n\n" .
-            "👤 *" . $empresa->representante_legal . "*\n" .
-            "🏢 NIT: *" . $empresa->nit . "*\n\n" .
-            "Ahora ingresa tu *CONTRASEÑA*:"
+        Log::info("📋 Mostrando menú de certificados para NIT: {$nit}");
+        
+        // Usar el TemplateService en lugar de texto hardcodeado
+        $this->messageService->sendText($userPhone,
+            "📋 *MENU DE CERTIFICADOS FIC*\n\n" .
+            "Elige una opción:\n\n" .
+            "• *GENERAR* - Crear nuevo certificado\n" .
+            "• *CONSULTAR* - Ver certificados generados\n" .
+            "• *SALIR* - Volver al menú principal"
         );
         
-        $requestedAction = $userState['requested_action'] ?? null;
-        
         $this->stateService->updateState($userPhone, [
-            'step' => 'auth_password',
-            'auth_username' => $username,
-            'empresa_id' => $empresa->id,
-            'empresa_nit' => $empresa->nit,
-            'representante_legal' => $empresa->representante_legal,
-            'requested_action' => $requestedAction
+            'step' => 'choosing_certificate_type',
+            'authenticated' => true,
+            'empresa_nit' => $nit,
+            'representante_legal' => $userState['representante_legal'] ?? 'Usuario'
         ]);
     }
 
-    private function processPassword(string $userPhone, string $password, array $userState): void
+    private function handleCertificateType(string $userPhone, string $messageText, string $nit, array $userState): void
     {
-        $username = $userState['auth_username'] ?? null;
+        $messageText = strtolower(trim($messageText));
 
-        // Si el usuario escribe "atras" o "menu", volver a pedir usuario
-        $lowerPassword = strtolower(trim($password));
-        if (in_array($lowerPassword, ['atras', 'menu', 'cancelar', 'volver'])) {
-            Log::info("🔙 Usuario volviendo a ingresar usuario");
-            $this->messageService->sendText($userPhone, 
-                "Por favor, ingresa tu *USUARIO* nuevamente:"
-            );
-            $this->stateService->updateState($userPhone, [
-                'step' => 'auth_username',
-                'auth_username' => null,
-                'requested_action' => $userState['requested_action'] ?? null
-            ]);
-            return;
-        }
-
-        if (!$username) {
-            Log::error("❌ No se encontró username en el estado");
-            $this->messageService->sendText($userPhone, $this->templateService->getErrorSystem());
-            $this->stateService->clearState($userPhone);
-            return;
-        }
-
-        $empresa = $this->authService->validateUsername($username);
-
-        if (!$empresa) {
-            Log::error("❌ Empresa no encontrada para usuario: {$username}");
-            $this->messageService->sendText($userPhone, $this->templateService->getErrorSystem());
-            $this->stateService->clearState($userPhone);
-            return;
-        }
-
-        if (!$this->authService->validatePassword($empresa, $password)) {
-            $this->messageService->sendText($userPhone, $this->templateService->getWrongPassword());
-            $this->stateService->updateState($userPhone, [
-                'step' => 'auth_password',
-                'auth_username' => $username,
-                'empresa_id' => $empresa->id,
-                'empresa_nit' => $empresa->nit,
-                'representante_legal' => $empresa->representante_legal,
-                'requested_action' => $userState['requested_action'] ?? null
-            ]);
-            return;
-        }
-
-            Log::info("✅ Autenticación exitosa para: " . $empresa->representante_legal);
-
-        // Obtener acción solicitada
-        $requestedAction = $userState['requested_action'] ?? null;
-        
-        // Enviar mensaje de éxito
-        $this->messageService->sendText($userPhone, 
-            $this->templateService->getAuthSuccess($empresa->representante_legal, $empresa->nit)
-        );
-
-        // Preparar estado base
-        $baseState = [
-            'authenticated' => true,
-            'empresa_nit' => $empresa->nit,
-            'representante_legal' => $empresa->representante_legal
-        ];
-
-        if ($requestedAction === 'generar_certificado') {
-            // Redirigir a generación de certificado
-            $this->stateService->updateState($userPhone, array_merge($baseState, [
-                'step' => 'choosing_certificate_type'
-            ]));
+        if (str_contains($messageText, 'generar')) {
+            Log::info("🔄 Usuario quiere generar nuevo certificado");
             $this->messageService->sendText($userPhone, $this->templateService->getCertificateOptions());
             
-            } elseif ($requestedAction === 'consultar_certificados') {
-                // Redirigir a consulta de certificados
-                $this->stateService->updateState($userPhone, array_merge($baseState, [
-                    'step' => 'consulting_certificates',
-                    'consulta_page' => 1
-                ]));
-                $this->messageService->sendText($userPhone,
-                "🔍 *Consulta de Certificados*\n\n" .
-                "Ahora puedes consultar tus certificados.\n\n" .
-                "Por favor, escribe *CONSULTAR CERTIFICADOS* nuevamente para continuar."
-            );  
+        } elseif (str_contains($messageText, 'consultar')) {
+            Log::info("📋 Usuario quiere consultar certificados generados");
+            $this->startCertificateConsultation($userPhone, $nit, $userState);
+            
+        } elseif (str_contains($messageText, 'estadisticas') || str_contains($messageText, 'estadísticas')) {
+            Log::info("📊 Usuario quiere ver estadísticas");
+            $this->showStatistics($userPhone, $nit);
+            
+        } elseif (str_contains($messageText, 'salir') || str_contains($messageText, 'menu')) {
+            Log::info("🔙 Usuario quiere salir al menú principal");
+            // Usar el método getAuthenticatedMenu del TemplateService
+            $this->messageService->sendText($userPhone, $this->templateService->getAuthenticatedMenu(
+                $userState['representante_legal'] ?? 'Usuario',
+                $nit
+            ));
+            $this->stateService->updateState($userPhone, [
+                'step' => 'main_menu',
+                'authenticated' => true,
+                'empresa_nit' => $nit,
+                'representante_legal' => $userState['representante_legal'] ?? 'Usuario'
+            ]);
+            
+        } elseif (str_contains($messageText, 'ticket')) {
+            Log::info("🎫 Usuario seleccionó Ticket");
+            $this->stateService->updateState($userPhone, [
+                'step' => 'awaiting_ticket',
+                'certificate_type' => 'nit_ticket'
+            ]);
+            $this->messageService->sendText($userPhone, $this->templateService->getCertificatePrompt('ticket'));
+            
+        } elseif (str_contains($messageText, 'nit') && !str_contains($messageText, 'vigencia')) {
+            Log::info("🏢 Usuario seleccionó NIT - Generando certificado general");
+            $this->generateCertificate($userPhone, 'nit_general', ['nit' => $nit], $userState);
+            
+        } elseif (str_contains($messageText, 'vigencia') || str_contains($messageText, 'vigente')) {
+            Log::info("📅 Usuario seleccionó Vigencia");
+            $this->stateService->updateState($userPhone, [
+                'step' => 'awaiting_year',
+                'certificate_type' => 'nit_vigencia'
+            ]);
+            $this->messageService->sendText($userPhone, $this->templateService->getCertificatePrompt('vigencia'));
+            
         } else {
-            // Mostrar menú normal
-            $this->stateService->updateState($userPhone, array_merge($baseState, [
-                'step' => 'main_menu'
-            ]));
-            $this->messageService->sendText($userPhone,
-                "👋 ¡Hola *{$empresa->representante_legal}*! (NIT: *{$empresa->nit}*)\n\n" .
-                "Selecciona una opción:\n\n" .
-                "• *Generar Certificado*\n" .
-                "• *Consultar Certificados*\n" .
-                "• *Requisitos*\n" .
-                "• *Soporte*\n" .
-                "• *Cerrar Sesión*\n" .
-                "• *Registro*\n\n" .
-                "Escribe el nombre de la opción."
-            );
+            Log::info("❌ Opción no reconocida en choosing_certificate_type");
+            $this->messageService->sendText($userPhone, $this->templateService->getCertificateOptions());
         }
     }
 
-    public function logout(string $userPhone): void
+    private function handleTicket(string $userPhone, string $messageText, string $nit, array $userState): void
     {
-        $userState = $this->stateService->getState($userPhone);
-        $isAuthenticated = $userState['authenticated'] ?? false;
+        Log::info("🎟️ Usuario ingresando ticket: {$messageText}");
         
-        if ($isAuthenticated) {
-            $userName = $userState['representante_legal'] ?? $userState['auth_username'] ?? 'Usuario';
+        if (strtolower(trim($messageText)) === 'atras') {
+            $this->messageService->sendText($userPhone, $this->templateService->getCertificateOptions());
+            $this->stateService->updateState($userPhone, [
+                'step' => 'choosing_certificate_type',
+                'authenticated' => true,
+                'empresa_nit' => $nit,
+                'representante_legal' => $userState['representante_legal'] ?? 'Usuario'
+            ]);
+            return;
+        }
+        
+        $ticket = trim($messageText);
+        
+        if (empty($ticket)) {
+            $this->messageService->sendText($userPhone, "❌ Por favor ingresa un número de ticket válido.");
+            return;
+        }
+        
+        $this->generateCertificate($userPhone, 'nit_ticket', [
+            'nit' => $nit,
+            'ticket' => $ticket
+        ], $userState);
+    }
+
+    private function handleYear(string $userPhone, string $messageText, string $nit, array $userState): void
+    {
+        Log::info("📅 Usuario ingresando año: {$messageText}");
+        
+        if (strtolower(trim($messageText)) === 'atras') {
+            $this->messageService->sendText($userPhone, $this->templateService->getCertificateOptions());
+            $this->stateService->updateState($userPhone, [
+                'step' => 'choosing_certificate_type',
+                'authenticated' => true,
+                'empresa_nit' => $nit,
+                'representante_legal' => $userState['representante_legal'] ?? 'Usuario'
+            ]);
+            return;
+        }
+        
+        $year = intval(preg_replace('/[^0-9]/','',$messageText));
+        
+        if (!$this->certificateService->validateYear($year)) {
+            $yearRange = $this->certificateService->getYearRange();
+            Log::warning("❌ Año fuera de rango: {$year}");
+            $this->messageService->sendText($userPhone, 
+                "❌ *Año fuera de rango*\n\n" .
+                "Solo se permiten vigencias entre {$yearRange['min']} y {$yearRange['max']}.\n" .
+                "Por favor ingresa un año válido (ej: 2025)."
+            );
+            return;
+        }
+
+        $this->generateCertificate($userPhone, 'nit_vigencia', [
+            'nit' => $nit,
+            'year' => $year
+        ], $userState);
+    }
+
+    private function generateCertificate(string $userPhone, string $type, array $data, array $userState): void
+    {
+        $pdfPath = null;
+        
+        try {
+            Log::info("🎫 Iniciando generación de certificado tipo: {$type}");
+            Log::info("📊 Datos: " . json_encode($data));
             
-            Log::info("🚪 Usuario cerrando sesión: {$userPhone}");
+            // Enviar mensaje de procesamiento
+            $this->messageService->sendText($userPhone, $this->templateService->getProcessingCertificate());
+
+            // Buscar certificados
+            $certificados = $this->searchCertificates($type, $data['nit'], $data['ticket'] ?? null, $data['year'] ?? null);
+
+            if ($certificados->isEmpty()) {
+                Log::warning("❌ No se encontraron certificados para los criterios");
+                $this->messageService->sendText($userPhone, $this->templateService->getCertificateNotFound());
+                $this->stateService->clearState($userPhone);
+                return;
+            }
+
+            Log::info("✅ Encontrados {$certificados->count()} certificados");
+
+            // Obtener información del usuario
+            $nombreUsuario = $this->getUserName($userPhone, $userState);
             
-            // Usar el método del TemplateService
+            // Crear objeto con datos de empresa
+            $empresaData = (object)[
+                'Usuario' => $nombreUsuario,
+                'representante_legal' => $nombreUsuario,
+                'nit' => $data['nit']
+            ];
+
+            // Generar PDF (ahora devuelve array)
+            $resultadoPDF = $this->certificateService->generatePDF($certificados, $type, $empresaData);
+            
+            $pdfPath = $resultadoPDF['file_path'];
+            $serial = $resultadoPDF['serial'];
+            
+            Log::info("📄 PDF generado: {$pdfPath}");
+            Log::info("🔢 Serial asignado: {$serial}");
+
+            // Enviar documento
+            $fileName = "Certificado_{$serial}.pdf";
+            $this->messageService->sendDocument($userPhone, $pdfPath, $fileName);
+
+            // Informar al usuario del serial
             $this->messageService->sendText($userPhone,
-                $this->templateService->getLogoutMessage($userName)
+                "✅ *Certificado generado exitosamente*\n\n" .
+                "• *Serial:* {$serial}\n" .
+                "¿Necesitas algo más? Escribe *MENU* para ver las opciones."
+            );
+
+            // Actualizar estado
+            $this->stateService->updateState($userPhone, [
+                'step' => 'main_menu',
+                'authenticated' => true,
+                'empresa_nit' => $userState['empresa_nit'] ?? null,
+                'representante_legal' => $userState['representante_legal'] ?? null,
+                'last_certificate_serial' => $serial
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('❌ Error generando certificado WhatsApp: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            
+            // Limpiar archivo temporal si existe
+            if ($pdfPath && file_exists($pdfPath)) {
+                @unlink($pdfPath);
+                Log::info("🗑️ Archivo temporal eliminado por error: {$pdfPath}");
+            }
+            
+            $this->messageService->sendText($userPhone, $this->templateService->getErrorSystem());
+            $this->stateService->clearState($userPhone);
+        }
+    }
+
+    private function getUserName(string $userPhone, array $userState): string
+    {
+        // Intentar obtener de varias fuentes
+        $nombreUsuario = $userState['representante_legal'] ?? 
+                        $userState['nombre_contacto'] ?? 
+                        'Usuario WhatsApp';
+        
+        // Si no hay nombre, intentar obtener de la empresa
+        if ($nombreUsuario === 'Usuario WhatsApp') {
+            $nit = $userState['empresa_nit'] ?? null;
+            if ($nit) {
+                $empresa = Empresa::where('nit', $nit)->first();
+                if ($empresa) {
+                    $nombreUsuario = $empresa->representante_legal ?? $empresa->Usuario ?? 'Usuario WhatsApp';
+                }
+            }
+        }
+        
+        return $nombreUsuario;
+    }
+
+    private function searchCertificates(string $type, string $nit, ?string $ticket = null, ?int $year = null)
+    {
+        switch ($type) {
+            case 'nit_ticket':
+                return $this->certificateService->searchByTicket($nit, $ticket);
+            case 'nit_vigencia':
+                return $this->certificateService->searchByVigencia($nit, $year);
+            case 'nit_general':
+            default:
+                return $this->certificateService->searchByNit($nit);
+        }
+    }
+
+    private function startCertificateConsultation(string $userPhone, string $nit, array $userState): void
+    {
+        Log::info("🔍 Iniciando consulta de certificados para NIT: {$nit}");
+        
+        $this->stateService->updateState($userPhone, [
+            'step' => 'consulting_certificates',
+            'consulta_page' => 1,
+            'authenticated' => true,
+            'empresa_nit' => $nit,
+            'representante_legal' => $userState['representante_legal'] ?? 'Usuario'
+        ]);
+        
+        $this->listCertificates($userPhone, $nit, 1, $userState);
+    }
+
+    private function handleConsultingCertificates(string $userPhone, string $messageText, string $nit, array $userState): void
+    {
+        $messageText = strtolower(trim($messageText));
+        
+        if ($messageText === 'atras' || $messageText === 'menu') {
+            // Volver al menú principal autenticado usando TemplateService
+            $this->messageService->sendText($userPhone, $this->templateService->getAuthenticatedMenu(
+                $userState['representante_legal'] ?? 'Usuario',
+                $nit
+            ));
+            $this->stateService->updateState($userPhone, [
+                'step' => 'main_menu',
+                'authenticated' => true,
+                'empresa_nit' => $nit,
+                'representante_legal' => $userState['representante_legal'] ?? 'Usuario'
+            ]);
+            return;
+        }
+        
+        if ($messageText === 'siguiente') {
+            $page = ($userState['consulta_page'] ?? 1) + 1;
+            $this->stateService->updateState($userPhone, ['consulta_page' => $page]);
+            $this->listCertificates($userPhone, $nit, $page, $userState);
+            return;
+        }
+        
+        if ($messageText === 'anterior') {
+            $page = max(1, ($userState['consulta_page'] ?? 1) - 1);
+            $this->stateService->updateState($userPhone, ['consulta_page' => $page]);
+            $this->listCertificates($userPhone, $nit, $page, $userState);
+            return;
+        }
+        
+        // Verificar si es una selección numérica
+        $selection = intval($messageText);
+        if ($selection > 0) {
+            $this->selectCertificate($userPhone, $nit, $selection, $userState);
+            return;
+        }
+        
+        $this->messageService->sendText($userPhone,
+            "❌ *Opción no válida*\n\n" .
+            "Por favor selecciona un número de la lista, " .
+            "o usa *ANTERIOR*/*SIGUIENTE* para navegar.\n" .
+            "Escribe *ATRAS* para volver al menú."
+        );
+    }
+
+    private function listCertificates(string $userPhone, string $nit, int $page = 1, array $userState): void
+    {
+        $limit = 5;
+        $offset = ($page - 1) * $limit;
+        
+        Log::info("📋 Listando certificados página {$page} para NIT: {$nit}");
+        
+        // Buscar certificados generados
+        $certificados = $this->certificateService->buscarCertificadosGenerados($nit, $limit + 1);
+        
+        if ($certificados->isEmpty()) {
+            $this->messageService->sendText($userPhone,
+                "📭 *No hay certificados generados*\n\n" .
+                "No se encontraron certificados generados para tu NIT.\n" .
+                "Puedes generar uno nuevo seleccionando la opción *GENERAR*.\n\n" .
+                "Escribe *ATRAS* para volver al menú."
+            );
+            return;
+        }
+        
+        // Preparar lista paginada
+        $total = $certificados->count();
+        $hasNext = $total > $limit;
+        $certificados = $certificados->slice($offset, $limit);
+        
+        $mensaje = "📋 *Tus Certificados Generados* - Página {$page}\n\n";
+        
+        $contador = 1;
+        $listaCertificados = [];
+        
+        foreach ($certificados as $cert) {
+            $listaCertificados[$contador] = [
+                'id' => $cert->id,
+                'serial' => $cert->serial,
+                'ruta' => $cert->ruta_archivo,
+                'nombre' => $cert->nombre_archivo,
+            ];
+            
+            $fecha = $cert->created_at->format('d/m/Y');
+            $hora = $cert->created_at->format('H:i');
+            
+            $tipoTexto = match($cert->tipo_certificado) {
+                'nit_general' => 'General',
+                'nit_ticket' => 'Ticket',
+                'nit_vigencia' => 'Vigencia',
+                default => $cert->tipo_certificado
+            };
+            
+            $mensaje .= "*{$contador}.* 📄 *{$cert->serial}*\n";
+            $mensaje .= "   • *Fecha y hora de generación:* {$fecha} ⏰ {$hora}\n";
+            $mensaje .= "   • *Tipo:* {$tipoTexto}\n";
+            $mensaje .= "   👤 *Usuario:* {$cert->usuario_generador}\n";
+            
+            $contador++;
+        }
+        
+        $mensaje .= "\nResponde con el *número* del certificado que deseas descargar.\n\n";
+        
+        if ($page > 1) {
+            $mensaje .= "📄 *ANTERIOR* - Página anterior\n";
+        }
+        
+        if ($hasNext) {
+            $mensaje .= "📄 *SIGUIENTE* - Página siguiente\n";
+        }
+        
+        $mensaje .= "🔙 *ATRAS* - Volver al menú";
+        
+        $this->messageService->sendText($userPhone, $mensaje);
+        
+        // Guardar lista en el estado
+        $this->stateService->updateState($userPhone, [
+            'step' => 'consulting_certificates',
+            'lista_certificados' => $listaCertificados,
+            'consulta_page' => $page,
+            'has_next_page' => $hasNext,
+            'authenticated' => true,
+            'empresa_nit' => $nit,
+            'representante_legal' => $userState['representante_legal'] ?? 'Usuario'
+        ]);
+    }
+
+    private function selectCertificate(string $userPhone, string $nit, int $selection, array $userState): void
+    {
+        $listaCertificados = $userState['lista_certificados'] ?? [];
+        
+        if (!isset($listaCertificados[$selection])) {
+            $this->messageService->sendText($userPhone,
+                "❌ *Selección inválida*\n\n" .
+                "Por favor, elige un número de la lista anterior."
+            );
+            return;
+        }
+        
+        $certificado = $listaCertificados[$selection];
+        
+        // Obtener información completa del certificado
+        $certificadoCompleto = $this->certificateService->buscarCertificadoPorSerial($certificado['serial']);
+        
+        if (!$certificadoCompleto) {
+            $this->messageService->sendText($userPhone,
+                "❌ *Certificado no encontrado*\n\n" .
+                "El certificado seleccionado ya no está disponible."
+            );
+            return;
+        }
+        
+        // Mostrar detalles y pedir confirmación
+        $fecha = $certificadoCompleto->created_at->format('d/m/Y H:i');
+        
+        $this->messageService->sendText($userPhone,
+            "✅ *Certificado seleccionado*\n\n" .
+            "• *Serial:* {$certificadoCompleto->serial}\n" .
+            "• *Fecha generación:* {$fecha}\n" .
+            "• *Tipo:* " . $this->getTipoTexto($certificadoCompleto->tipo_certificado) . "\n" .
+            "👤 *Generado por:* {$certificadoCompleto->usuario_generador}\n\n" .
+            "¿Deseas descargar este certificado?\n\n" .
+            "Responde *SI* para confirmar o *NO* para cancelar."
+        );
+        
+        $this->stateService->updateState($userPhone, [
+            'step' => 'confirm_download',
+            'certificado_seleccionado' => $certificadoCompleto->toArray(),
+            'authenticated' => true,
+            'empresa_nit' => $nit,
+            'representante_legal' => $userState['representante_legal'] ?? 'Usuario'
+        ]);
+    }
+
+    private function getTipoTexto(string $tipo): string
+    {
+        return match($tipo) {
+            'nit_general' => 'General por NIT',
+            'nit_ticket' => 'Por Ticket',
+            'nit_vigencia' => 'Por Vigencia',
+            default => $tipo
+        };
+    }
+
+    private function handleConfirmDownload(string $userPhone, string $messageText, string $nit, array $userState): void
+    {
+        $respuesta = strtolower(trim($messageText));
+        
+        if (in_array($respuesta, ['si', 'sí', 'yes', 'confirmar', 'descargar'])) {
+            $certificado = $userState['certificado_seleccionado'] ?? null;
+            
+            if (!$certificado) {
+                $this->messageService->sendText($userPhone, 
+                    "❌ *Error al descargar*\n\n" .
+                    "No se encontró información del certificado."
+                );
+                $this->stateService->clearState($userPhone);
+                return;
+            }
+            
+            $serial = $certificado['serial'] ?? null;
+            $rutaArchivo = $certificado['ruta_archivo'] ?? null;
+            
+            if (!$serial || !$rutaArchivo || !file_exists($rutaArchivo)) {
+                $this->messageService->sendText($userPhone,
+                    "❌ *Archivo no disponible*\n\n" .
+                    "El archivo del certificado ya no está disponible.\n" .
+                    "Serial: {$serial}"
+                );
+                $this->stateService->clearState($userPhone);
+                return;
+            }
+            
+            // Enviar archivo
+            $nombreArchivo = "Certificado_{$serial}.pdf";
+            $this->messageService->sendDocument($userPhone, $rutaArchivo, $nombreArchivo);
+            
+            // Actualizar registro en BD
+            $certGenerado = $this->certificateService->buscarCertificadoPorSerial($serial);
+            if ($certGenerado) {
+                $certGenerado->marcarDescargado();
+                Log::info("✅ Certificado {$serial} marcado como descargado");
+            }
+            
+            $this->messageService->sendText($userPhone,
+                "✅ *Certificado descargado*\n\n" .
+                "El certificado *{$serial}* ha sido descargado exitosamente.\n\n" .
+                "¿Necesitas algo más? Escribe *MENU* para ver las opciones."
             );
             
-            // Limpiar estado completamente
-            $this->stateService->clearState($userPhone);
+            // Volver al menú principal usando TemplateService
+            $this->messageService->sendText($userPhone, $this->templateService->getAuthenticatedMenu(
+                $userState['representante_legal'] ?? 'Usuario',
+                $nit
+            ));
             
-            // Mostrar menú principal
-            $this->messageService->sendText($userPhone, $this->templateService->getMenu());
+            $this->stateService->updateState($userPhone, [
+                'step' => 'main_menu',
+                'authenticated' => true,
+                'empresa_nit' => $nit,
+                'representante_legal' => $userState['representante_legal'] ?? 'Usuario'
+            ]);
+            
+        } elseif (in_array($respuesta, ['no', 'cancelar'])) {
+            // Volver a la lista de certificados
+            $this->messageService->sendText($userPhone, 
+                "❌ Descarga cancelada.\n\n" .
+                "Puedes seleccionar otro certificado."
+            );
+            
+            $this->stateService->updateState($userPhone, [
+                'step' => 'consulting_certificates',
+                'consulta_page' => $userState['consulta_page'] ?? 1,
+                'authenticated' => true,
+                'empresa_nit' => $nit,
+                'representante_legal' => $userState['representante_legal'] ?? 'Usuario'
+            ]);
+            
+        } elseif ($respuesta === 'atras') {
+            // Volver al menú principal usando TemplateService
+            $this->messageService->sendText($userPhone, $this->templateService->getAuthenticatedMenu(
+                $userState['representante_legal'] ?? 'Usuario',
+                $nit
+            ));
+            
+            $this->stateService->updateState($userPhone, [
+                'step' => 'main_menu',
+                'authenticated' => true,
+                'empresa_nit' => $nit,
+                'representante_legal' => $userState['representante_legal'] ?? 'Usuario'
+            ]);
             
         } else {
-            $this->messageService->sendText($userPhone,
-                $this->templateService->getNoAuthenticationMessage()
+            $this->messageService->sendText($userPhone, 
+                "❌ *Respuesta no reconocida*\n\n" .
+                "Responde *SI* para confirmar o *NO* para cancelar.\n" .
+                "Escribe *ATRAS* para volver al menú."
             );
+            return;
         }
     }
 }

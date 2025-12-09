@@ -2,6 +2,8 @@
 
 namespace App\Services\WhatsApp;
 
+use App\Services\WhatsApp\CertificateService;
+
 class TemplateService
 {
     // ========== MENÚS ==========
@@ -90,12 +92,18 @@ class TemplateService
                "• Escribe *REGISTRO* si no tienes cuenta";
     }
 
+    public function getNoAuthenticationMessage(): string
+    {
+        return "❌ *No hay sesión activa*\n\n" .
+               "No tienes una sesión iniciada.\n\n" .
+               "Para usar esta función, primero debes autenticarte.\n\n" .
+               "Escribe *AUTENTICAR* para iniciar sesión.";
+    }
+
     public function getCompanyInfoNotFound(): string
     {
         return "❌ Error: No se encontró información de la empresa. Por favor, autentícate nuevamente.";
     }
-
-
 
     // ========== INFORMACIÓN GENERAL ==========
     public function getRequirements(): string
@@ -141,7 +149,8 @@ class TemplateService
             case 'ticket':
                 return "🎫 *Certificado por TICKET*\n\nPor favor ingresa el número de *TICKET*:";
             case 'vigencia':
-                $yearRange = app(CertificateService::class)->getYearRange();
+                $certificateService = app(CertificateService::class);
+                $yearRange = $certificateService->getYearRange();
                 return "📅 *Certificado por VIGENCIA*\n\nIngresa el *AÑO* de la vigencia (ejemplo: 2025). Solo se permiten 15 años atrás desde el actual ({$yearRange['min']} - {$yearRange['max']}).";
             default:
                 return "";
@@ -182,12 +191,15 @@ class TemplateService
         return "🤔 *No entendí*\n\n" .
                "Comandos disponibles:\n\n" .
                "• *MENU* - Ver opciones principales\n" .
-               "• *CERRAR SESION* (si estás autenticado)\n\n" ;
+               "• *REQUISITOS* - Ver requisitos para certificados\n" .
+               "• *SOPORTE* - Información de contacto\n" .
+               "• *AUTENTICAR* - Iniciar sesión\n" .
+               "• *REGISTRO* - Información de registro\n\n" .
+               "Escribe el nombre de la opción que necesitas.";
     }
 
     public function getErrorSystem(): string
     {
         return "❌ *Error del sistema*\n\nPor favor intenta nuevamente o contacta a soporte.";
     }
-
 }

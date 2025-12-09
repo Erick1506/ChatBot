@@ -23,10 +23,19 @@ class HandleCertificateFlowAction
         Log::info("=== HANDLE CERTIFICATE FLOW INICIADO ===");
         Log::info("Paso actual: " . ($userState['step'] ?? 'none'));
         Log::info("Mensaje: {$messageText}");
+        Log::info("Estado completo: " . json_encode($userState));
 
-        if (!isset($userState['authenticated']) || !$userState['authenticated']) {
-            Log::warning("❌ Usuario no autenticado intentando generar certificado");
+        // Verificación MÁS robusta de autenticación
+        if (!isset($userState['authenticated']) || !$userState['authenticated'] || 
+            empty($userState['empresa_nit']) || empty($userState['representante_legal'])) {
+            
+            Log::warning("❌ Usuario no autenticado o datos incompletos");
+            Log::warning("Estado recibido: " . json_encode($userState));
+            
             $this->messageService->sendText($userPhone, $this->templateService->getNotAuthenticated());
+            
+            // Limpiar estado inconsistente
+            $this->stateService->clearState($userPhone);
             return;
         }
 
@@ -56,10 +65,6 @@ class HandleCertificateFlowAction
                 $this->handleConsultingCertificates($userPhone, $messageText, $nit, $userState);
                 break;
 
-            case 'selecting_certificate':
-                $this->handleSelectingCertificate($userPhone, $messageText, $nit, $userState);
-                break;
-
             case 'confirm_download':
                 $this->handleConfirmDownload($userPhone, $messageText, $nit, $userState);
                 break;
@@ -78,12 +83,10 @@ class HandleCertificateFlowAction
         $this->messageService->sendText($userPhone,
             "📋 *MENU DE CERTIFICADOS FIC*\n\n" .
             "Elige una opción:\n\n" .
-            "• *GENERAR* - Crear un nuevo certificado\n" .
             "• *CONSULTAR* - Ver certificados generados\n" .
-            "• *ESTADISTICAS* - Ver estadísticas\n" .
             "• *SALIR* - Volver al menú principal"
         );
-
+        
         $this->stateService->updateState($userPhone, [
             'step' => 'choosing_certificate_type',
             'authenticated' => true,
@@ -109,8 +112,15 @@ class HandleCertificateFlowAction
             
         } elseif (str_contains($messageText, 'salir') || str_contains($messageText, 'menu')) {
             Log::info("🔙 Usuario quiere salir al menú principal");
-            $this->messageService->sendText($userPhone, $this->templateService->getMenu());
-            $this->stateService->clearState($userPhone);
+            $this->messageService->sendText($userPhone, $this->templateService->getAuthenticatedMenu(
+                $this->stateService->getState($userPhone)['representante_legal'] ?? 'Usuario',
+                $nit
+            ));
+            $this->stateService->updateState($userPhone, [
+                'step' => 'main_menu',
+                'authenticated' => true,
+                'empresa_nit' => $nit,
+            ]);
             
         } elseif (str_contains($messageText, 'ticket')) {
             Log::info("🎫 Usuario seleccionó Ticket");
@@ -331,7 +341,16 @@ class HandleCertificateFlowAction
         $messageText = strtolower(trim($messageText));
         
         if ($messageText === 'atras' || $messageText === 'menu') {
-            $this->showCertificateMenu($userPhone, $nit);
+            // Volver al menú principal autenticado
+            $this->messageService->sendText($userPhone, $this->templateService->getAuthenticatedMenu(
+                $userState['representante_legal'] ?? 'Usuario',
+                $nit
+            ));
+            $this->stateService->updateState($userPhone, [
+                'step' => 'main_menu',
+                'authenticated' => true,
+                'empresa_nit' => $nit,
+            ]);
             return;
         }
         
@@ -420,7 +439,7 @@ class HandleCertificateFlowAction
             $contador++;
         }
         
-        $mensaje .= "Responde con el *número* del certificado que deseas descargar.\n\n";
+        $mensaje .= "\nResponde con el *número* del certificado que deseas descargar.\n\n";
         
         if ($page > 1) {
             $mensaje .= "📄 *ANTERIOR* - Página anterior\n";
@@ -543,10 +562,20 @@ class HandleCertificateFlowAction
                 "¿Necesitas algo más? Escribe *MENU* para ver las opciones."
             );
             
-        } elseif (in_array($respuesta, ['no', 'cancelar', 'atras'])) {
+            // Volver al menú principal
+            $userState = $this->stateService->getState($userPhone);
+            $this->stateService->updateState($userPhone, [
+                'step' => 'main_menu',
+                'authenticated' => true,
+                'empresa_nit' => $userState['empresa_nit'] ?? $nit,
+                'representante_legal' => $userState['representante_legal'] ?? 'Usuario'
+            ]);
+            
+        } elseif (in_array($respuesta, ['no', 'cancelar'])) {
+            // Volver a la lista de certificados
             $this->messageService->sendText($userPhone, 
                 "❌ Descarga cancelada.\n\n" .
-                "Puedes seleccionar otro certificado o escribir *ATRAS* para volver al menú."
+                "Puedes seleccionar otro certificado."
             );
             
             $this->stateService->updateState($userPhone, [
@@ -554,17 +583,26 @@ class HandleCertificateFlowAction
                 'consulta_page' => $userState['consulta_page'] ?? 1
             ]);
             
+        } elseif ($respuesta === 'atras') {
+            // Volver al menú principal
+            $this->messageService->sendText($userPhone, 
+                "🔙 Volviendo al menú principal."
+            );
+            
+            $this->stateService->updateState($userPhone, [
+                'step' => 'main_menu',
+                'authenticated' => true,
+                'empresa_nit' => $nit,
+                'representante_legal' => $userState['representante_legal'] ?? 'Usuario'
+            ]);
+            
         } else {
             $this->messageService->sendText($userPhone, 
                 "❌ *Respuesta no reconocida*\n\n" .
-                "Responde *SI* para confirmar o *NO* para cancelar."
+                "Responde *SI* para confirmar o *NO* para cancelar.\n" .
+                "Escribe *ATRAS* para volver al menú."
             );
             return;
         }
-    }
-
-    private function handleSelectingCertificate(string $userPhone, string $messageText, string $nit, array $userState): void
-    {
-        $this->handleConfirmDownload($userPhone, $messageText, $nit, $userState);
     }
 }

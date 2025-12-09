@@ -119,7 +119,26 @@ class StateService
             'awaiting_company_code',
             'awaiting_password',
             'validating_credentials',
-            'authenticated'
+            'authenticated',
+            'auth_username',
+            'auth_password'
         ]);
+    }
+    
+    /**
+     * Limpiar estado inconsistente
+     */
+    public function clearInconsistentState(string $userPhone): void
+    {
+        $state = $this->getState($userPhone);
+        
+        // Si tiene authenticated=true pero falta información esencial
+        if (($state['authenticated'] ?? false) === true && 
+            (empty($state['empresa_nit']) || empty($state['representante_legal']))) {
+            
+            Log::warning("🔄 Limpiando estado inconsistente para: {$userPhone}");
+            Log::warning("Estado inconsistente: " . json_encode($state));
+            $this->clearState($userPhone);
+        }
     }
 }

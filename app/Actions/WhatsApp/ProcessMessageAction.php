@@ -65,10 +65,22 @@ class ProcessMessageAction
         $normalized = $this->userFlowService->normalizeMessage($messageText);
         
         $userState = $this->stateService->getState($userPhone);
-        $isAuthenticated = $userState['authenticated'] ?? false;
+        
+        // Verificar autenticación REAL (no solo el flag)
+        $isAuthenticated = $this->isReallyAuthenticated($userState);
+        
         $currentStep = $userState['step'] ?? '';
+        
+        Log::info("📱 Estado: " . ($isAuthenticated ? "Autenticado" : "No autenticado") . 
+                  ", Paso: {$currentStep}, NIT: " . ($userState['empresa_nit'] ?? 'N/A'));
 
-        Log::info("📱 Estado: " . ($isAuthenticated ? "Autenticado" : "No autenticado") . ", Paso: {$currentStep}");
+        // ========== COMANDO MENU PRIMERO (corrección principal) ==========
+        $command = $this->userFlowService->detectCommand($normalized);
+        
+        if ($command === 'menu') {
+            $this->handleMenuCommand($userPhone, $isAuthenticated, $userState, $suppressWelcome);
+            return;
+        }
 
         // ========== VERIFICACIÓN DE FLUJOS ACTIVOS ==========
 
@@ -105,12 +117,6 @@ class ProcessMessageAction
         // ========== COMANDOS PRINCIPALES ==========
         $command = $this->userFlowService->detectCommand($normalized);
         Log::info("🔍 Comando: " . ($command ?? "Ninguno"));
-
-        // COMANDO: MENU
-        if ($command === 'menu') {
-            $this->handleMenuCommand($userPhone, $isAuthenticated, $userState, $suppressWelcome);
-            return;
-        }
 
         // COMANDO: GENERAR CERTIFICADO
         if ($command === 'generar_certificado') {
@@ -150,7 +156,16 @@ class ProcessMessageAction
         }
 
         // ========== COMANDO NO RECONOCIDO ==========
-        $this->handleUnknownCommand($userPhone, $currentStep);
+        $this->handleUnknownCommand($userPhone, $isAuthenticated, $currentStep);
+    }
+
+    // Método para verificar autenticación REAL
+    private function isReallyAuthenticated(array $userState): bool
+    {
+        // Verificar no solo el flag, sino también datos esenciales
+        return ($userState['authenticated'] ?? false) === true &&
+               !empty($userState['empresa_nit']) &&
+               !empty($userState['representante_legal']);
     }
 
     // Métodos helper para simplificar
@@ -170,11 +185,15 @@ class ProcessMessageAction
                 "• *Registro*\n\n" .
                 "Escribe el nombre de la opción."
             );
+            // Actualizar estado para mantener autenticación
+            $this->stateService->updateState($userPhone, array_merge($userState, [
+                'step' => 'main_menu',
+                'authenticated' => true
+            ]));
         } else {
             $this->messageService->sendText($userPhone, $this->templateService->getMenu(!$suppressWelcome));
+            $this->stateService->updateState($userPhone, ['step' => 'main_menu']);
         }
-        
-        $this->stateService->updateState($userPhone, ['step' => 'main_menu']);
     }
 
     private function handleGenerarCertificado(string $userPhone, bool $isAuthenticated, array $userState): void
@@ -215,7 +234,11 @@ class ProcessMessageAction
             'consulta_page' => 1
         ]);
         
-        $this->handleCertificateFlowAction->execute($userPhone, 'consultar', $userState);
+        // Llamar al método que lista los certificados directamente
+        $nit = $userState['empresa_nit'] ?? null;
+        if ($nit) {
+            $this->handleCertificateFlowAction->execute($userPhone, 'consultar', $userState);
+        }
     }
 
     private function handleAutenticar(string $userPhone, bool $isAuthenticated, array $userState): void
@@ -233,7 +256,7 @@ class ProcessMessageAction
         }
     }
 
-    private function handleUnknownCommand(string $userPhone, string $currentStep): void
+    private function handleUnknownCommand(string $userPhone, bool $isAuthenticated, string $currentStep): void
     {
         if (!empty($currentStep)) {
             $this->messageService->sendText($userPhone,
@@ -241,7 +264,18 @@ class ProcessMessageAction
                 "Escribe *MENU* para ver las opciones."
             );
         } else {
-            $this->messageService->sendText($userPhone, $this->templateService->getUnknownCommand());
+            if ($isAuthenticated) {
+                $userState = $this->stateService->getState($userPhone);
+                $userName = $userState['representante_legal'] ?? 'Usuario';
+                $nit = $userState['empresa_nit'] ?? 'N/A';
+                $this->messageService->sendText($userPhone,
+                    "🤔 *No entendí*\n\n" .
+                    "Hola *{$userName}* (NIT: *{$nit}*)\n\n" .
+                    "Escribe *MENU* para ver las opciones."
+                );
+            } else {
+                $this->messageService->sendText($userPhone, $this->templateService->getUnknownCommand());
+            }
         }
     }
 }
