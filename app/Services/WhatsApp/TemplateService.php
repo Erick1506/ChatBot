@@ -41,17 +41,6 @@ class TemplateService
             "Escribe el nombre de la opción.";
     }
 
-    public function getAlreadyAuthenticated(string $userName, string $nit): string
-    {
-        return "✅ *YA ESTÁS AUTENTICADO*\n\n" .
-            "Hola *{$userName}* (NIT: *{$nit}*)\n\n" .
-            "Puedes usar todas las funciones:\n" .
-            "• Escribe *GENERAR CERTIFICADO* para crear un nuevo certificado\n" .
-            "• Escribe *CONSULTAR CERTIFICADOS* para ver tus certificados\n" .
-            "• Escribe *CERRAR SESION* para salir\n" .
-            "• Escribe *MENU* para ver todas las opciones";
-    }
-
     // ========== AUTENTICACIÓN ==========
     public function getAuthPrompt(): string
     {
@@ -106,15 +95,7 @@ class TemplateService
         return "❌ Error: No se encontró información de la empresa. Por favor, autentícate nuevamente.";
     }
 
-    public function getAuthenticationRequired(string $action = 'acceder'): string
-    {
-        return "🔐 *AUTENTICACIÓN REQUERIDA*\n\n" .
-               "Para {$action}, primero debes autenticarte.\n\n" .
-               "📋 *Opciones:*\n" .
-               "• Escribe *AUTENTICAR* para iniciar sesión\n" .
-               "• Escribe *MENU* para ver todas las opciones\n" .
-               "• Escribe *REGISTRO* si no tienes cuenta";
-    }
+
 
     // ========== INFORMACIÓN GENERAL ==========
     public function getRequirements(): string
@@ -209,10 +190,4 @@ class TemplateService
         return "❌ *Error del sistema*\n\nPor favor intenta nuevamente o contacta a soporte.";
     }
 
-    public function getNoAuthenticationMessage(): string
-    {
-        return "ℹ️ *No estás autenticado*\n\n" .
-               "Para cerrar sesión primero necesitas iniciar sesión.\n\n" .
-               "Escribe *AUTENTICAR* para iniciar sesión.";
-    }
 }

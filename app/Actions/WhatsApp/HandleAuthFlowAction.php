@@ -148,40 +148,56 @@ class HandleAuthFlowAction
             return;
         }
 
-        Log::info("✅ Autenticación exitosa para: " . $empresa->representante_legal);
+            Log::info("✅ Autenticación exitosa para: " . $empresa->representante_legal);
 
-        // Obtener acción solicitada si existe
+        // Obtener acción solicitada
         $requestedAction = $userState['requested_action'] ?? null;
         
-        // Enviar mensaje de éxito de autenticación
+        // Enviar mensaje de éxito
         $this->messageService->sendText($userPhone, 
             $this->templateService->getAuthSuccess($empresa->representante_legal, $empresa->nit)
         );
 
+        // Preparar estado base
+        $baseState = [
+            'authenticated' => true,
+            'empresa_nit' => $empresa->nit,
+            'representante_legal' => $empresa->representante_legal
+        ];
+
         if ($requestedAction === 'generar_certificado') {
-            Log::info("🔄 Redirigiendo a generación de certificado después de autenticación");
-            
-            $this->stateService->updateState($userPhone, [
-                'step' => 'choosing_certificate_type',
-                'authenticated' => true,
-                'empresa_nit' => $empresa->nit,
-                'representante_legal' => $empresa->representante_legal,
-                'requested_action' => null
-            ]);
-            
+            // Redirigir a generación de certificado
+            $this->stateService->updateState($userPhone, array_merge($baseState, [
+                'step' => 'choosing_certificate_type'
+            ]));
             $this->messageService->sendText($userPhone, $this->templateService->getCertificateOptions());
             
+            } elseif ($requestedAction === 'consultar_certificados') {
+                // Redirigir a consulta de certificados
+                $this->stateService->updateState($userPhone, array_merge($baseState, [
+                    'step' => 'consulting_certificates',
+                    'consulta_page' => 1
+                ]));
+                $this->messageService->sendText($userPhone,
+                "🔍 *Consulta de Certificados*\n\n" .
+                "Ahora puedes consultar tus certificados.\n\n" .
+                "Por favor, escribe *CONSULTAR CERTIFICADOS* nuevamente para continuar."
+            );  
         } else {
-            // Mostrar menú de autenticado
-            $this->stateService->updateState($userPhone, [
-                'step' => 'main_menu',
-                'authenticated' => true,
-                'empresa_nit' => $empresa->nit,
-                'representante_legal' => $empresa->representante_legal
-            ]);
-            
+            // Mostrar menú normal
+            $this->stateService->updateState($userPhone, array_merge($baseState, [
+                'step' => 'main_menu'
+            ]));
             $this->messageService->sendText($userPhone,
-                $this->templateService->getAuthenticatedMenu($empresa->representante_legal, $empresa->nit)
+                "👋 ¡Hola *{$empresa->representante_legal}*! (NIT: *{$empresa->nit}*)\n\n" .
+                "Selecciona una opción:\n\n" .
+                "• *Generar Certificado*\n" .
+                "• *Consultar Certificados*\n" .
+                "• *Requisitos*\n" .
+                "• *Soporte*\n" .
+                "• *Cerrar Sesión*\n" .
+                "• *Registro*\n\n" .
+                "Escribe el nombre de la opción."
             );
         }
     }

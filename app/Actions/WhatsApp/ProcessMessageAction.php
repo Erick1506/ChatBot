@@ -12,7 +12,6 @@ class ProcessMessageAction
 {
     private HandleAuthFlowAction $handleAuthFlowAction;
     private HandleCertificateFlowAction $handleCertificateFlowAction;
-    private HandleConsultaCertificadosAction $handleConsultaCertificadosAction;
     
     public function __construct(
         private MessageService $messageService,
@@ -28,13 +27,6 @@ class ProcessMessageAction
         );
         
         $this->handleCertificateFlowAction = new HandleCertificateFlowAction(
-            $this->messageService,
-            $this->stateService,
-            $this->templateService,
-            app()->make(\App\Services\WhatsApp\CertificateService::class)
-        );
-        
-        $this->handleConsultaCertificadosAction = new HandleConsultaCertificadosAction(
             $this->messageService,
             $this->stateService,
             $this->templateService,
@@ -76,214 +68,177 @@ class ProcessMessageAction
         $isAuthenticated = $userState['authenticated'] ?? false;
         $currentStep = $userState['step'] ?? '';
 
-        Log::info("📱 Estado usuario: " . ($isAuthenticated ? "Autenticado" : "No autenticado"));
-        Log::info("📱 Paso actual: {$currentStep}");
+        Log::info("📱 Estado: " . ($isAuthenticated ? "Autenticado" : "No autenticado") . ", Paso: {$currentStep}");
 
         // ========== VERIFICACIÓN DE FLUJOS ACTIVOS ==========
 
-        // 1. Verificar si está en flujo de autenticación
-        $authSteps = ['auth_username', 'awaiting_username', 'auth_password', 'awaiting_password'];
+        // 1. Flujo de autenticación
+        $authSteps = ['auth_username', 'auth_password'];
         if (in_array($currentStep, $authSteps)) {
-            Log::info("🔐 Estado de autenticación detectado ({$currentStep}) — manejando por flujo de auth");
+            Log::info("🔐 Flujo de autenticación detectado");
             $this->handleAuthFlowAction->execute($userPhone, $normalized['raw'], $userState);
             return;
         }
 
-        // 2. IMPORTANTE: Si NO está autenticado, NO puede estar en flujos de certificado
-        // Limpiar cualquier estado de certificado si no está autenticado
+        // 2. Flujos de certificados (solo si autenticado)
         $certificateSteps = [
             'choosing_certificate_type', 'awaiting_ticket', 'awaiting_year', 
-            'consulting_certificates', 'selecting_certificate', 'confirm_download'
+            'consulting_certificates', 'confirm_download'
         ];
         
         if (!$isAuthenticated && in_array($currentStep, $certificateSteps)) {
-            Log::warning("⚠️ Usuario no autenticado en estado de certificado: {$currentStep}. Limpiando estado.");
+            Log::warning("⚠️ Usuario no autenticado en estado de certificado");
             $this->stateService->clearState($userPhone);
             $this->messageService->sendText($userPhone, 
-                "🔒 *Sesión expirada*\n\n" .
-                "Tu sesión ha expirado o no estás autenticado.\n\n" .
-                $this->templateService->getMenu()
+                "🔒 *Sesión expirada*\n\n" . $this->templateService->getMenu()
             );
             return;
         }
 
-        // 3. Flujos de certificados - SOLO si está autenticado
-        if ($isAuthenticated && $this->stateService->isInCertificateFlow($userPhone)) {
-            Log::info("Estado activo detectado — manejando por flujo de certificado");
+        // 3. Si está autenticado y en flujo de certificado
+        if ($isAuthenticated && in_array($currentStep, $certificateSteps)) {
+            Log::info("📄 Flujo de certificado detectado");
             $this->handleCertificateFlowAction->execute($userPhone, $normalized['lower'], $userState);
             return;
         }
 
-        // 4. Flujos de consulta de certificados - SOLO si está autenticado
-        if ($isAuthenticated && $this->stateService->isInConsultaCertificadosFlow($userPhone)) {
-            Log::info("Estado de consulta de certificados detectado");
-            $this->handleConsultaCertificadosAction->execute($userPhone, $normalized['lower'], $userState);
-            return;
-        }
-
-        // ========== COMANDOS GLOBALES / MENÚ ==========
+        // ========== COMANDOS PRINCIPALES ==========
         $command = $this->userFlowService->detectCommand($normalized);
-        Log::info("🔍 Comando detectado: " . ($command ?? "Ninguno"));
+        Log::info("🔍 Comando: " . ($command ?? "Ninguno"));
 
         // COMANDO: MENU
         if ($command === 'menu') {
-            Log::info("🤖 Comando MENU/HOLA recibido - suppressWelcome={$suppressWelcome}");
-            
-            if ($isAuthenticated) {
-                // Menú para usuarios autenticados
-                $userName = $userState['representante_legal'] ?? $userState['nombre_contacto'] ?? 'Usuario';
-                $nit = $userState['empresa_nit'] ?? 'N/A';
-                
-                $this->messageService->sendText($userPhone,
-                    $this->templateService->getAuthenticatedMenu($userName, $nit)
-                );
-            } else {
-                // Menú para usuarios NO autenticados
-                if (!$suppressWelcome) {
-                    $this->messageService->sendText($userPhone, $this->templateService->getMenu());
-                } else {
-                    $this->messageService->sendText($userPhone, $this->templateService->getMenu(true));
-                }
-            }
-            
-            $this->stateService->updateState($userPhone, ['step' => 'main_menu']);
+            $this->handleMenuCommand($userPhone, $isAuthenticated, $userState, $suppressWelcome);
             return;
         }
 
         // COMANDO: GENERAR CERTIFICADO
         if ($command === 'generar_certificado') {
-            Log::info("🤖 Usuario solicitó iniciar flujo de Generar Certificado");
-            
-            if (!$isAuthenticated) {
-                Log::warning("❌ Usuario no autenticado intentando generar certificado");
-                
-                $this->messageService->sendText($userPhone,
-                    $this->templateService->getAuthenticationRequired('generar certificados')
-                );
-                
-                // Iniciar flujo de autenticación con acción solicitada
-                $this->stateService->updateState($userPhone, [
-                    'step' => 'auth_username',
-                    'authenticated' => false,
-                    'requested_action' => 'generar_certificado'
-                ]);
-                return;
-            }
-            
-            // Usuario autenticado - iniciar flujo de certificados
-            $this->stateService->updateState($userPhone, [
-                'step' => 'choosing_certificate_type',
-                'authenticated' => true,
-                'empresa_nit' => $userState['empresa_nit'] ?? null,
-                'representante_legal' => $userState['representante_legal'] ?? null
-            ]);
-            
-            $this->messageService->sendText($userPhone, $this->templateService->getCertificateOptions());
+            $this->handleGenerarCertificado($userPhone, $isAuthenticated, $userState);
             return;
         }
 
         // COMANDO: CONSULTAR CERTIFICADOS
         if ($command === 'consultar_certificados') {
-            Log::info("🔍 Usuario quiere consultar certificados generados");
-            
-            if (!$isAuthenticated) {
-                Log::info("🔒 Usuario no autenticado, redirigiendo a autenticación");
-                
-                $this->messageService->sendText($userPhone,
-                    $this->templateService->getAuthenticationRequired('consultar certificados')
-                );
-                
-                $this->stateService->updateState($userPhone, [
-                    'step' => 'auth_username',
-                    'authenticated' => false,
-                    'requested_action' => 'consultar_certificados'
-                ]);
-                return;
-            }
-            
-            // Verificar que tenga NIT
-            $nit = $userState['empresa_nit'] ?? null;
-            if (!$nit) {
-                Log::warning("❌ Usuario autenticado pero sin NIT para consultar certificados");
-                $this->messageService->sendText($userPhone,
-                    "❌ *Error en la consulta*\n\n" .
-                    "No se encontró información de empresa en tu perfil.\n" .
-                    "Por favor, autentícate nuevamente escribiendo *AUTENTICAR*."
-                );
-                return;
-            }
-            
-            // Iniciar flujo de consulta
-            $this->handleConsultaCertificadosAction->execute($userPhone, 'consultar', $userState);
+            $this->handleConsultarCertificados($userPhone, $isAuthenticated, $userState);
             return;
         }
 
         // COMANDO: AUTENTICAR
         if ($command === 'autenticar') {
-            Log::info("🔐 Usuario solicitó autenticarse");
-            
-            if ($isAuthenticated) {
-                $userName = $userState['representante_legal'] ?? $userState['nombre_contacto'] ?? 'Usuario';
-                $nit = $userState['empresa_nit'] ?? 'N/A';
-                $this->messageService->sendText($userPhone,
-                    $this->templateService->getAlreadyAuthenticated($userName, $nit)
-                );
-            } else {
-                // Iniciar autenticación
-                $this->messageService->sendText($userPhone, $this->templateService->getAuthPrompt());
-                
-                $this->stateService->updateState($userPhone, [
-                    'step' => 'auth_username',
-                    'authenticated' => false
-                ]);
-            }
+            $this->handleAutenticar($userPhone, $isAuthenticated, $userState);
             return;
         }
 
         // COMANDO: CERRAR SESIÓN
         if ($command === 'cerrar_sesion') {
-            if (!$isAuthenticated) {
-                $this->messageService->sendText($userPhone,
-                    $this->templateService->getNoAuthenticationMessage()
-                );
-                return;
-            }
-            
-            // Si está autenticado, llamar al logout
             $this->handleAuthFlowAction->logout($userPhone);
             return;
         }
 
-        // COMANDO: REQUISITOS
-        if ($command === 'requisitos') {
-            Log::info("🤖 Usuario solicitó Requisitos");
-            $this->messageService->sendText($userPhone, $this->templateService->getRequirements());
-            return;
-        }
-
-        // COMANDO: SOPORTE
-        if ($command === 'soporte') {
-            Log::info("🤖 Usuario solicitó Soporte");
-            $this->messageService->sendText($userPhone, $this->templateService->getSupportInfo());
-            return;
-        }
-
-        // COMANDO: REGISTRO
-        if ($command === 'registro') {
-            Log::info("🤖 Usuario solicitó información de registro");
-            $this->messageService->sendText($userPhone, $this->templateService->getRegistrationInfo());
-            return;
-        }
-
-        // ========== SI NO SE RECONOCE EL COMANDO ==========
-        Log::info("❓ No se reconoció comando global, enviando ayuda corta");
+        // COMANDOS SIMPLES
+        $simpleCommands = [
+            'requisitos' => 'getRequirements',
+            'soporte' => 'getSupportInfo',
+            'registro' => 'getRegistrationInfo'
+        ];
         
+        if (isset($simpleCommands[$command])) {
+            $method = $simpleCommands[$command];
+            $this->messageService->sendText($userPhone, $this->templateService->$method());
+            return;
+        }
+
+        // ========== COMANDO NO RECONOCIDO ==========
+        $this->handleUnknownCommand($userPhone, $currentStep);
+    }
+
+    // Métodos helper para simplificar
+    private function handleMenuCommand(string $userPhone, bool $isAuthenticated, array $userState, bool $suppressWelcome): void
+    {
+        if ($isAuthenticated) {
+            $userName = $userState['representante_legal'] ?? 'Usuario';
+            $nit = $userState['empresa_nit'] ?? 'N/A';
+            $this->messageService->sendText($userPhone,
+                "👋 ¡Hola *{$userName}*! (NIT: *{$nit}*)\n\n" .
+                "Selecciona una opción:\n\n" .
+                "• *Generar Certificado*\n" .
+                "• *Consultar Certificados*\n" .
+                "• *Requisitos*\n" .
+                "• *Soporte*\n" .
+                "• *Cerrar Sesión*\n" .
+                "• *Registro*\n\n" .
+                "Escribe el nombre de la opción."
+            );
+        } else {
+            $this->messageService->sendText($userPhone, $this->templateService->getMenu(!$suppressWelcome));
+        }
+        
+        $this->stateService->updateState($userPhone, ['step' => 'main_menu']);
+    }
+
+    private function handleGenerarCertificado(string $userPhone, bool $isAuthenticated, array $userState): void
+    {
+        if (!$isAuthenticated) {
+            $this->messageService->sendText($userPhone, $this->templateService->getAuthPrompt());
+            $this->stateService->updateState($userPhone, [
+                'step' => 'auth_username',
+                'authenticated' => false,
+                'requested_action' => 'generar_certificado'
+            ]);
+            return;
+        }
+        
+        $this->stateService->updateState($userPhone, [
+            'step' => 'choosing_certificate_type',
+            'authenticated' => true,
+            'empresa_nit' => $userState['empresa_nit'] ?? null
+        ]);
+        
+        $this->messageService->sendText($userPhone, $this->templateService->getCertificateOptions());
+    }
+
+    private function handleConsultarCertificados(string $userPhone, bool $isAuthenticated, array $userState): void
+    {
+        if (!$isAuthenticated) {
+            $this->messageService->sendText($userPhone, $this->templateService->getAuthPrompt());
+            $this->stateService->updateState($userPhone, [
+                'step' => 'auth_username',
+                'authenticated' => false,
+                'requested_action' => 'consultar_certificados'
+            ]);
+            return;
+        }
+        
+        $this->stateService->updateState($userPhone, [
+            'step' => 'consulting_certificates',
+            'consulta_page' => 1
+        ]);
+        
+        $this->handleCertificateFlowAction->execute($userPhone, 'consultar', $userState);
+    }
+
+    private function handleAutenticar(string $userPhone, bool $isAuthenticated, array $userState): void
+    {
+        if ($isAuthenticated) {
+            $userName = $userState['representante_legal'] ?? 'Usuario';
+            $nit = $userState['empresa_nit'] ?? 'N/A';
+            $this->messageService->sendText($userPhone,
+                "✅ *Ya estás autenticado*\n\n" .
+                "Hola *{$userName}* (NIT: *{$nit}*)\n\n" .
+                "Escribe *MENU* para ver las opciones."
+            );
+        } else {
+            $this->handleAuthFlowAction->startAuthentication($userPhone);
+        }
+    }
+
+    private function handleUnknownCommand(string $userPhone, string $currentStep): void
+    {
         if (!empty($currentStep)) {
             $this->messageService->sendText($userPhone,
                 "🤔 *No entendí*\n\n" .
-                "Parece que estás en medio de un proceso.\n\n" .
-                "Si deseas cancelar, escribe *MENU* para volver al inicio.\n" .
-                "O continúa con el proceso actual."
+                "Escribe *MENU* para ver las opciones."
             );
         } else {
             $this->messageService->sendText($userPhone, $this->templateService->getUnknownCommand());
