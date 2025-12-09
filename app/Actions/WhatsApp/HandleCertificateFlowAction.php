@@ -78,10 +78,10 @@ class HandleCertificateFlowAction
         $this->messageService->sendText($userPhone,
             "📋 *MENU DE CERTIFICADOS FIC*\n\n" .
             "Elige una opción:\n\n" .
-            "📄 *GENERAR* - Crear un nuevo certificado\n" .
-            "📋 *CONSULTAR* - Ver certificados generados\n" .
-            "📊 *ESTADISTICAS* - Ver estadísticas\n" .
-            "🔙 *SALIR* - Volver al menú principal"
+            "• *GENERAR* - Crear un nuevo certificado\n" .
+            "• *CONSULTAR* - Ver certificados generados\n" .
+            "• *ESTADISTICAS* - Ver estadísticas\n" .
+            "• *SALIR* - Volver al menú principal"
         );
 
         $this->stateService->updateState($userPhone, [
@@ -143,9 +143,9 @@ class HandleCertificateFlowAction
         $this->messageService->sendText($userPhone,
             "📄 *TIPO DE CERTIFICADO*\n\n" .
             "Elige el tipo de certificado que necesitas:\n\n" .
-            "🏢 *NIT* - Certificado general por NIT\n" .
-            "🎫 *TICKET* - Certificado por número de ticket\n" .
-            "📅 *VIGENCIA* - Certificado por año de vigencia\n" .
+            "• *NIT* - Certificado general por NIT\n" .
+            "• *TICKET* - Certificado por número de ticket\n" .
+            "• *VIGENCIA* - Certificado por año de vigencia\n" .
             "🔙 *ATRAS* - Volver al menú anterior"
         );
     }
@@ -252,10 +252,7 @@ class HandleCertificateFlowAction
             // Informar al usuario del serial
             $this->messageService->sendText($userPhone,
                 "✅ *Certificado generado exitosamente*\n\n" .
-                "🔢 *Serial:* {$serial}\n" .
-                "📊 *Registros:* {$certificados->count()}\n" .
-                "💰 *Valor total:* $" . number_format($resultadoPDF['total'] ?? 0, 0, ',', '.') . "\n\n" .
-                "Guarda el número de serial para futuras consultas.\n\n" .
+                "• *Serial:* {$serial}\n" .
                 "¿Necesitas algo más? Escribe *MENU* para ver las opciones."
             );
 
@@ -416,12 +413,9 @@ class HandleCertificateFlowAction
             };
             
             $mensaje .= "*{$contador}.* 📄 *{$cert->serial}*\n";
-            $mensaje .= "   📅 {$fecha} ⏰ {$hora}\n";
-            $mensaje .= "   🏷️ Tipo: {$tipoTexto}\n";
-            $mensaje .= "   📊 {$cert->cantidad_registros} registros\n";
-            $mensaje .= "   💰 $" . number_format($cert->valor_total, 0, ',', '.') . "\n";
-            $mensaje .= "   👤 {$cert->usuario_generador}\n";
-            $mensaje .= "   📥 " . ($cert->descargado ? "✅ Descargado" : "⏳ Pendiente") . "\n\n";
+            $mensaje .= "   • *Fecha y hora de generación:* {$fecha} ⏰ {$hora}\n";
+            $mensaje .= "   • *Tipo:* {$tipoTexto}\n";
+            $mensaje .= "   👤 *Usuario:* {$cert->usuario_generador}\n";
             
             $contador++;
         }
@@ -479,11 +473,9 @@ class HandleCertificateFlowAction
         
         $this->messageService->sendText($userPhone,
             "✅ *Certificado seleccionado*\n\n" .
-            "🔢 *Serial:* {$certificadoCompleto->serial}\n" .
-            "📅 *Fecha generación:* {$fecha}\n" .
-            "🏷️ *Tipo:* " . $this->getTipoTexto($certificadoCompleto->tipo_certificado) . "\n" .
-            "📊 *Registros:* {$certificadoCompleto->cantidad_registros}\n" .
-            "💰 *Valor total:* $" . number_format($certificadoCompleto->valor_total, 0, ',', '.') . "\n" .
+            "• *Serial:* {$certificadoCompleto->serial}\n" .
+            "• *Fecha generación:* {$fecha}\n" .
+            "• *Tipo:* " . $this->getTipoTexto($certificadoCompleto->tipo_certificado) . "\n" .
             "👤 *Generado por:* {$certificadoCompleto->usuario_generador}\n\n" .
             "¿Deseas descargar este certificado?\n\n" .
             "Responde *SI* para confirmar o *NO* para cancelar."
@@ -571,62 +563,8 @@ class HandleCertificateFlowAction
         }
     }
 
-    private function showStatistics(string $userPhone, string $nit): void
-    {
-        Log::info("📊 Mostrando estadísticas para NIT: {$nit}");
-        
-        try {
-            $estadisticas = $this->certificateService->obtenerEstadisticas($nit);
-            
-            $mensaje = "📈 *Estadísticas de Certificados*\n\n";
-            $mensaje .= "🏢 NIT: *{$nit}*\n\n";
-            $mensaje .= "📄 *Total generados:* {$estadisticas['total']}\n";
-            $mensaje .= "📅 *Última semana:* {$estadisticas['ultima_semana']}\n";
-            $mensaje .= "💰 *Valor total:* $" . number_format($estadisticas['valor_total'], 0, ',', '.') . "\n\n";
-            
-            if (!empty($estadisticas['por_tipo'])) {
-                $mensaje .= "*Distribución por tipo:*\n";
-                foreach ($estadisticas['por_tipo'] as $tipo => $cantidad) {
-                    $tipoTexto = $this->getTipoTexto($tipo);
-                    $mensaje .= "  • {$tipoTexto}: {$cantidad}\n";
-                }
-                $mensaje .= "\n";
-            }
-            
-            if (!empty($estadisticas['mensual'])) {
-                $mensaje .= "*Últimos 6 meses:*\n";
-                foreach ($estadisticas['mensual'] as $mes) {
-                    $mensaje .= "  📅 {$mes['mes_nombre']}: {$mes['cantidad']}\n";
-                }
-            }
-            
-            $mensaje .= "\nEscribe *CONSULTAR* para ver tus certificados o *MENU* para volver.";
-            
-            $this->messageService->sendText($userPhone, $mensaje);
-            
-            $this->stateService->updateState($userPhone, [
-                'step' => 'choosing_certificate_type'
-            ]);
-            
-        } catch (\Exception $e) {
-            Log::error("❌ Error obteniendo estadísticas: " . $e->getMessage());
-            
-            $this->messageService->sendText($userPhone,
-                "❌ *Error al obtener estadísticas*\n\n" .
-                "No se pudieron obtener las estadísticas en este momento.\n" .
-                "Por favor, intenta más tarde."
-            );
-            
-            $this->stateService->updateState($userPhone, [
-                'step' => 'choosing_certificate_type'
-            ]);
-        }
-    }
-
     private function handleSelectingCertificate(string $userPhone, string $messageText, string $nit, array $userState): void
     {
-        // Método para manejar selección detallada (si necesitas más lógica)
-        // Por ahora redirigimos a confirm_download
         $this->handleConfirmDownload($userPhone, $messageText, $nit, $userState);
     }
 }

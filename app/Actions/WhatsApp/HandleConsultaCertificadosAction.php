@@ -84,11 +84,9 @@ class HandleConsultaCertificadosAction
             $hora = $cert->created_at->format('H:i');
             
             $mensaje .= "*{$contador}.* 📄 *{$cert->serial}*\n";
-            $mensaje .= "   📅 {$fecha} ⏰ {$hora}\n";
-            $mensaje .= "   🏢 {$cert->nombre_empresa}\n";
-            $mensaje .= "   📊 {$cert->cantidad_registros} registros\n";
-            $mensaje .= "   💰 $" . number_format($cert->valor_total, 0, ',', '.') . "\n";
-            $mensaje .= "   👤 {$cert->usuario_generador}\n\n";
+            $mensaje .= "   • *Fecha y hora de generación*{$fecha}, {$hora}\n";
+            $mensaje .= "   • *Razón social*{$cert->nombre_empresa}\n";
+            $mensaje .= "   👤 *Usuario* {$cert->usuario_generador}\n\n";
             
             $contador++;
         }
@@ -200,42 +198,9 @@ class HandleConsultaCertificadosAction
             $this->messageService->sendText($userPhone,
                 "📊 *Consulta de Certificados*\n\n" .
                 "Elige una opción:\n\n" .
-                "📋 *LISTAR* - Ver mis certificados generados\n" .
-                "📈 *ESTADISTICAS* - Ver estadísticas\n" .
-                "🔙 *MENU* - Volver al menú principal"
+                "• *LISTAR* - Ver mis certificados generados\n" .
+                "• *MENU* - Volver al menú principal"
             );
         }
-    }
-    
-    private function mostrarEstadisticas(string $userPhone, string $nit): void
-    {
-        $estadisticas = $this->certificateService->obtenerEstadisticas($nit);
-        
-        $mensaje = "📈 *Estadísticas de Certificados*\n\n";
-        $mensaje .= "🏢 NIT: *{$nit}*\n\n";
-        $mensaje .= "📄 *Total generados:* {$estadisticas['total']}\n";
-        $mensaje .= "📅 *Última semana:* {$estadisticas['ultima_semana']}\n";
-        $mensaje .= "💰 *Valor total:* $" . number_format($estadisticas['valor_total'], 0, ',', '.') . "\n\n";
-        
-        if (!empty($estadisticas['por_tipo'])) {
-            $mensaje .= "*Distribución por tipo:*\n";
-            foreach ($estadisticas['por_tipo'] as $tipo => $cantidad) {
-                $tipoTexto = match($tipo) {
-                    'nit_general' => 'General',
-                    'nit_ticket' => 'Por Ticket',
-                    'nit_vigencia' => 'Por Vigencia',
-                    default => $tipo
-                };
-                $mensaje .= "  • {$tipoTexto}: {$cantidad}\n";
-            }
-        }
-        
-        $mensaje .= "\nEscribe *LISTAR* para ver tus certificados o *MENU* para volver.";
-        
-        $this->messageService->sendText($userPhone, $mensaje);
-        
-        $this->stateService->updateState($userPhone, [
-            'step' => 'menu_consulta',
-        ]);
     }
 }

@@ -14,19 +14,12 @@ class TemplateService
             $msg .= "¡Bienvenido! Selecciona una opción:\n\n";
         }
         
-        $msg .= "• *1* - Generar Certificado\n";
-        $msg .= "• *2* - Consultar Certificados\n";
-        $msg .= "• *3* - Requisitos\n";
-        $msg .= "• *4* - Soporte\n";
-        $msg .= "• *5* - Autenticarse\n";
-        $msg .= "• *6* - Registro\n\n";
+        $msg .= "• *Requisitos*\n";
+        $msg .= "• *Soporte*\n";
+        $msg .= "• *Autenticarse*\n";
+        $msg .= "• *Registro*\n\n";
         
-        if (!$compact) {
-            $msg .= "🔒 *Nota:* Las opciones 1 y 2 requieren autenticación.\n";
-            $msg .= "Usa la opción *5* para autenticarte primero.\n\n";
-        }
-        
-        $msg .= "Escribe el número o nombre de la opción.";
+        $msg .= "Escribe el nombre de la opción, ejemplo: (*Requisitos*).";
         
         return $msg;
     }
@@ -35,7 +28,7 @@ class TemplateService
     public function getLogoutMessage(string $userName = 'Usuario'): string
     {
         return "✅ *SESIÓN CERRADA*\n\n" .
-            "Adiós *{$userName}*. Has cerrado sesión exitosamente.\n\n" .
+            "*{$userName}*, Has cerrado sesión exitosamente.\n\n" .
             "Para usar las funciones de certificados, deberás autenticarte nuevamente.\n\n" .
             "Escribe *MENU* para ver las opciones.";
     }
@@ -209,15 +202,7 @@ class TemplateService
                     default => $cert['tipo']
                 };
                 $msg .= "   🏷️ Tipo: {$tipo}\n";
-            }
-            
-            if (isset($cert['registros'])) {
-                $msg .= "   📊 {$cert['registros']} registros\n";
-            }
-            
-            if (isset($cert['valor_total'])) {
-                $msg .= "   💰 $" . number_format($cert['valor_total'], 0, ',', '.') . "\n";
-            }
+            }            
             
             $msg .= "\n";
         }
@@ -244,11 +229,9 @@ class TemplateService
         };
         
         return "✅ *Certificado seleccionado*\n\n" .
-               "🔢 *Serial:* {$serial}\n" .
-               "📅 *Fecha generación:* {$fecha}\n" .
-               "🏷️ *Tipo:* {$tipoTexto}\n" .
-               "📊 *Registros:* {$registros}\n" .
-               "💰 *Valor total:* $" . number_format($valorTotal, 0, ',', '.') . "\n\n" .
+               "• *Serial:* {$serial}\n" .
+               "• *Fecha generación:* {$fecha}\n" .
+               "• *Tipo:* {$tipoTexto}\n" .
                "¿Deseas descargar este certificado?\n\n" .
                "Responde *SI* para confirmar o *NO* para cancelar.";
     }
@@ -271,32 +254,5 @@ class TemplateService
         return "📭 *No hay certificados disponibles*\n\n" .
                "No se encontraron certificados generados para tu empresa.\n\n" .
                "Puedes generar uno nuevo seleccionando la opción *Generar Certificado*.";
-    }
-
-    public function getStatisticsInfo(array $estadisticas, string $nit): string
-    {
-        $msg = "📈 *Estadísticas de Certificados*\n\n";
-        $msg .= " NIT: *{$nit}*\n\n";
-        $msg .= " *Total generados:* {$estadisticas['total']}\n";
-        $msg .= " *Última semana:* {$estadisticas['ultima_semana']}\n";
-        $msg .= " *Valor total:* $" . number_format($estadisticas['valor_total'], 0, ',', '.') . "\n\n";
-        
-        if (!empty($estadisticas['por_tipo'])) {
-            $msg .= "*Distribución por tipo:*\n";
-            foreach ($estadisticas['por_tipo'] as $tipo => $cantidad) {
-                $tipoTexto = match($tipo) {
-                    'nit_general' => 'General',
-                    'nit_ticket' => 'Ticket',
-                    'nit_vigencia' => 'Vigencia',
-                    default => $tipo
-                };
-                $msg .= "  • {$tipoTexto}: {$cantidad}\n";
-            }
-            $msg .= "\n";
-        }
-        
-        $msg .= "Escribe *CONSULTAR* para ver tus certificados o *MENU* para volver.";
-        
-        return $msg;
     }
 }

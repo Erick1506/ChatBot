@@ -117,15 +117,14 @@ class ProcessMessageAction
                 $nit = $userState['empresa_nit'] ?? 'N/A';
                 
                 $welcomeMsg = "👋 ¡Hola *{$userName}*! (NIT: *{$nit}*)\n\n";
-                $welcomeMsg .= "✅ *Ya estás autenticado*\n\n";
                 $welcomeMsg .= "Selecciona una opción:\n\n";
-                $welcomeMsg .= "✅ *1* - Generar Certificado\n";
-                $welcomeMsg .= "✅ *2* - Consultar Certificados\n";
-                $welcomeMsg .= "• *3* - Requisitos\n";
-                $welcomeMsg .= "• *4* - Soporte\n";
-                $welcomeMsg .= "🚪 *5* - Cerrar Sesión\n";
-                $welcomeMsg .= "• *6* - Registro\n\n";
-                $welcomeMsg .= "Escribe el número o nombre de la opción.";
+                $welcomeMsg .= "• *Generar Certificado*\n";
+                $welcomeMsg .= "• *Consultar Certificados*\n";
+                $welcomeMsg .= "• *Requisitos*\n";
+                $welcomeMsg .= "• *Soporte*\n";
+                $welcomeMsg .= "• *Cerrar Sesión*\n";
+                $welcomeMsg .= "• *Registro*\n\n";
+                $welcomeMsg .= "Escribe el nombre de la opción.";
                 
                 $this->messageService->sendText($userPhone, $welcomeMsg);
             } else {
@@ -133,27 +132,11 @@ class ProcessMessageAction
                 if (!$suppressWelcome) {
                     $this->messageService->sendText($userPhone, 
                         "📌 *MENÚ PRINCIPAL - Chatbot FIC*\n\n" .
-                        "¡Bienvenido! Selecciona una opción:\n\n" .
-                        "• *1* - Generar Certificado\n" .
-                        "• *2* - Consultar Certificados\n" .
-                        "• *3* - Requisitos\n" .
-                        "• *4* - Soporte\n" .
-                        "🔐 *5* - Autenticarse\n" .
-                        "• *6* - Registro\n\n" .
-                        "🔒 *Nota:* Las opciones 1 y 2 requieren autenticación.\n" .
-                        "Usa la opción *5* para autenticarte primero.\n\n" .
-                        "Escribe el número o nombre de la opción."
-                    );
-                } else {
-                    $this->messageService->sendText($userPhone, 
-                        "📌 *MENÚ PRINCIPAL*\n\n" .
-                        "1️⃣ Generar Certificado\n" .
-                        "2️⃣ Consultar Certificados\n" .
-                        "3️⃣ Requisitos\n" .
-                        "4️⃣ Soporte\n" .
-                        "5️⃣ Autenticarse\n" .
-                        "6️⃣ Registro\n\n" .
-                        "Elige una opción:"
+                        "¡Bienvenido! Escribe el nombre de una opción:\n\n" .
+                        "• *Requisitos*\n" .
+                        "• *Soporte*\n" .
+                        "• *Autenticarse*\n" .
+                        "• *Registro*\n\n" 
                     );
                 }
             }
