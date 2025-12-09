@@ -44,68 +44,35 @@ class UserFlowService
 
     public function detectCommand(array $normalizedMessage): ?string
     {
-        $text = $normalizedMessage['lower'] ?? '';
-        $raw = $normalizedMessage['raw'] ?? '';
+        $lower = $normalizedMessage['lower'];
         
-        if (empty($text)) {
-            return null;
-        }
-        
-        // Primero verificar números específicos
-        if ($text === '1' || $text === 'generar') {
-            return 'generar_certificado';
-        }
-        
-        if ($text === '2' || $text === 'consultar') {
-            return 'consultar_certificados';
-        }
-        
-        if ($text === '3' || str_contains($text, 'requisito')) {
-            return 'requisitos';
-        }
-        
-        if ($text === '4' || str_contains($text, 'soporte')) {
-            return 'soporte';
-        }
-        
-        if ($text === '5' || str_contains($text, 'autenticar') || str_contains($text, 'login') || str_contains($text, 'sesion')) {
-            return 'autenticar';
-        }
-        
-        if ($text === '6' || str_contains($text, 'registro') || str_contains($text, 'inscribir') || str_contains($text, 'registrarse')) {
-            return 'registro';
-        }
-        
-        if (str_contains($text, 'cerrar sesion') || str_contains($text, 'logout') || str_contains($text, 'salir')) {
-            return 'cerrar_sesion';
-        }
-        
-        // Comandos para menú principal
-        if (str_contains($text, 'menu') || 
-            str_contains($text, 'hola') || 
-            str_contains($text, 'inicio') ||
-            str_contains($text, 'opciones') ||
-            str_contains($text, 'ayuda') ||
-            $text === 'hi' || $text === 'hello') {
+        if ($lower === 'menu' || 
+            str_contains($lower, 'inicio') || 
+            str_contains($lower, 'hola')) {
             return 'menu';
         }
         
-        // Comando para generar certificado
-        if (str_contains($text, 'generar') || 
-            str_contains($text, 'certificado') ||
-            str_contains($text, 'crear') ||
-            str_contains($text, 'nuevo')) {
+        if (str_contains($lower, 'generar certificado') || 
+            $lower === 'generar' || 
+            str_contains($lower, 'certificado')) {
             return 'generar_certificado';
         }
         
-        // Comando para consultar certificados
-        if (str_contains($text, 'consultar') || 
-            str_contains($text, 'ver') ||
-            str_contains($text, 'listar') ||
-            str_contains($text, 'historial') ||
-            str_contains($text, 'anteriores') ||
-            str_contains($text, 'descargar')) {
-            return 'consultar_certificados';
+        if (str_contains($lower, 'requisitos')) {
+            return 'requisitos';
+        }
+        
+        if (str_contains($lower, 'soporte') || 
+            str_contains($lower, 'ayuda') || 
+            str_contains($lower, 'contacto')) {
+            return 'soporte';
+        }
+        
+        if (str_contains($lower, 'registro') || 
+            str_contains($lower, 'registrarse') || 
+            str_contains($lower, 'información de usuario') || 
+            str_contains($lower, 'informacion de usuario')) {
+            return 'registro';
         }
         
         return null;

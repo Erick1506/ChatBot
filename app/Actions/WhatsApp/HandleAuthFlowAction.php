@@ -25,10 +25,7 @@ class HandleAuthFlowAction
     {
         Log::info("🔐 Iniciando autenticación para usuario: {$userPhone}");
         $this->messageService->sendText($userPhone, $this->templateService->getAuthPrompt());
-        $this->stateService->updateState($userPhone, [
-            'step' => 'auth_username',
-            'authenticated' => false
-        ]);
+        $this->stateService->updateState($userPhone, ['step' => 'awaiting_username']);
     }
 
     public function execute(string $userPhone, string $messageText, array $userState): void
@@ -40,12 +37,12 @@ class HandleAuthFlowAction
         $step = $userState['step'] ?? '';
 
         switch ($step) {
-            case 'auth_username':
+            case 'awaiting_username':
                 Log::info("👤 Usuario ingresando username: {$messageText}");
-                $this->processUsername($userPhone, $messageText, $userState);
+                $this->processUsername($userPhone, $messageText);
                 break;
 
-            case 'auth_password':
+            case 'awaiting_password':
                 Log::info("🔐 Usuario ingresando password");
                 $this->processPassword($userPhone, $messageText, $userState);
                 break;
@@ -57,20 +54,8 @@ class HandleAuthFlowAction
         }
     }
 
-    private function processUsername(string $userPhone, string $username, array $userState): void
+    private function processUsername(string $userPhone, string $username): void
     {
-        // Si el usuario escribe "atras" o "menu", volver al menú principal
-        $lowerUsername = strtolower(trim($username));
-        if (in_array($lowerUsername, ['atras', 'menu', 'cancelar', 'volver'])) {
-            Log::info("🔙 Usuario cancelando autenticación");
-            $this->messageService->sendText($userPhone, 
-                "❌ Autenticación cancelada.\n\n" .
-                "Escribe *MENU* para ver las opciones."
-            );
-            $this->stateService->clearState($userPhone);
-            return;
-        }
-
         $empresa = $this->authService->validateUsername($username);
 
         if (!$empresa) {
@@ -79,45 +64,22 @@ class HandleAuthFlowAction
             return;
         }
 
-        Log::info("✅ Usuario encontrado: " . $empresa->representante_legal);
+        $message = "✅ Usuario encontrado.\n\n";
+        $message .= "👤 *" . $empresa->representante_legal . "*\n\n";
+        $message .= "Ahora ingresa tu *CONTRASEÑA*:";
 
-        $this->messageService->sendText($userPhone, 
-            "✅ *Usuario encontrado*\n\n" .
-            "👤 *" . $empresa->representante_legal . "*\n" .
-            "🏢 NIT: *" . $empresa->nit . "*\n\n" .
-            "Ahora ingresa tu *CONTRASEÑA*:"
-        );
-        
-        $requestedAction = $userState['requested_action'] ?? null;
-        
+        $this->messageService->sendText($userPhone, $message);
         $this->stateService->updateState($userPhone, [
-            'step' => 'auth_password',
-            'auth_username' => $username,
+            'step' => 'awaiting_password',
+            'username' => $username,
             'empresa_id' => $empresa->id,
-            'empresa_nit' => $empresa->nit,
-            'representante_legal' => $empresa->representante_legal,
-            'requested_action' => $requestedAction
+            'nit' => $empresa->nit
         ]);
     }
 
     private function processPassword(string $userPhone, string $password, array $userState): void
     {
-        $username = $userState['auth_username'] ?? null;
-
-        // Si el usuario escribe "atras" o "menu", volver a pedir usuario
-        $lowerPassword = strtolower(trim($password));
-        if (in_array($lowerPassword, ['atras', 'menu', 'cancelar', 'volver'])) {
-            Log::info("🔙 Usuario volviendo a ingresar usuario");
-            $this->messageService->sendText($userPhone, 
-                "Por favor, ingresa tu *USUARIO* nuevamente:"
-            );
-            $this->stateService->updateState($userPhone, [
-                'step' => 'auth_username',
-                'auth_username' => null,
-                'requested_action' => $userState['requested_action'] ?? null
-            ]);
-            return;
-        }
+        $username = $userState['username'] ?? null;
 
         if (!$username) {
             Log::error("❌ No se encontró username en el estado");
@@ -138,110 +100,22 @@ class HandleAuthFlowAction
         if (!$this->authService->validatePassword($empresa, $password)) {
             $this->messageService->sendText($userPhone, $this->templateService->getWrongPassword());
             $this->stateService->updateState($userPhone, [
-                'step' => 'auth_password',
-                'auth_username' => $username,
-                'empresa_id' => $empresa->id,
-                'empresa_nit' => $empresa->nit,
-                'representante_legal' => $empresa->representante_legal,
-                'requested_action' => $userState['requested_action'] ?? null
+                'step' => 'awaiting_username',
+                'username' => null
             ]);
             return;
         }
 
         Log::info("✅ Autenticación exitosa para: " . $empresa->representante_legal);
 
-        // Obtener acción solicitada
-        $requestedAction = $userState['requested_action'] ?? null;
-        
-        // Enviar mensaje de éxito
-        $this->messageService->sendText($userPhone, 
-            $this->templateService->getAuthSuccess($empresa->representante_legal, $empresa->nit)
-        );
+        $this->messageService->sendText($userPhone, $this->templateService->getAuthSuccess($empresa->representante_legal, $empresa->nit));
+        $this->messageService->sendText($userPhone, $this->templateService->getCertificateOptions());
 
-        // Preparar estado base
-        $baseState = [
+        $this->stateService->updateState($userPhone, [
+            'step' => 'choosing_certificate_type',
             'authenticated' => true,
             'empresa_nit' => $empresa->nit,
-            'representante_legal' => $empresa->representante_legal,
-            'step' => 'main_menu' // Paso por defecto
-        ];
-
-        if ($requestedAction === 'generar_certificado') {
-            // Redirigir directamente a generación
-            $this->stateService->updateState($userPhone, array_merge($baseState, [
-                'step' => 'choosing_certificate_type'
-            ]));
-            $this->messageService->sendText($userPhone, $this->templateService->getCertificateOptions());
-            
-        } elseif ($requestedAction === 'consultar_certificados') {
-            // Redirigir DIRECTAMENTE a la consulta (sin menú intermedio)
-            $this->stateService->updateState($userPhone, array_merge($baseState, [
-                'step' => 'consulting_certificates',
-                'consulta_page' => 1
-            ]));
-            
-            // Llamar directamente al método de listar certificados
-            $this->handleCertificateConsultation($userPhone, $empresa->nit);
-            
-        } else {
-            // Mostrar menú normal
-            $this->stateService->updateState($userPhone, $baseState);
-            $this->messageService->sendText($userPhone,
-                "👋 ¡Hola *{$empresa->representante_legal}*! (NIT: *{$empresa->nit}*)\n\n" .
-                "Selecciona una opción:\n\n" .
-                "• *Generar Certificado*\n" .
-                "• *Consultar* - certificados*\n" .                
-                "• *Requisitos*\n" .
-                "• *Soporte*\n" .
-                "• *Cerrar Sesión*\n" .
-                "• *Registro*\n\n" .
-                "Escribe el nombre de la opción."
-            );
-        }
-    }
-
-    private function handleCertificateConsultation(string $userPhone, string $nit): void
-    {
-        Log::info("🔍 Iniciando consulta de certificados para NIT: {$nit}");
-        
-        // Crear manualmente el CertificateFlowAction para listar certificados
-        $certificateService = app()->make(\App\Services\WhatsApp\CertificateService::class);
-        $handleCertificateFlowAction = new HandleCertificateFlowAction(
-            $this->messageService,
-            $this->stateService,
-            $this->templateService,
-            $certificateService
-        );
-        
-        $userState = $this->stateService->getState($userPhone);
-        $handleCertificateFlowAction->execute($userPhone, 'consultar', $userState);
-    }
-
-    public function logout(string $userPhone): void
-    {
-        $userState = $this->stateService->getState($userPhone);
-        $isAuthenticated = $userState['authenticated'] ?? false;
-        
-        if ($isAuthenticated) {
-            $userName = $userState['representante_legal'] ?? $userState['auth_username'] ?? 'Usuario';
-            
-            Log::info("🚪 Usuario cerrando sesión: {$userPhone}");
-            
-            // Usar el método del TemplateService
-            $this->messageService->sendText($userPhone,
-                $this->templateService->getLogoutMessage($userName)
-            );
-            
-            // Limpiar estado completamente
-            $this->stateService->clearState($userPhone);
-            
-            // Mostrar menú principal
-            $this->messageService->sendText($userPhone, $this->templateService->getMenu());
-            
-        } else {
-            $this->messageService->sendText($userPhone,
-                $this->templateService->getNoAuthenticationMessage()
-            );
-        }
+            'representante_legal' => $empresa->representante_legal
+        ]);
     }
 }
