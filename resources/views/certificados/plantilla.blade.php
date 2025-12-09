@@ -23,7 +23,7 @@
         
         /* CONTENEDOR PRINCIPAL (HOJA A4) */
         .page-container {
-            width: 19cm;
+            width: 18cm;
             min-height: 29.7cm;
             height: 29.7cm; /* Altura fija */
             background: white;
