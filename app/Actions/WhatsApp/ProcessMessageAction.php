@@ -7,6 +7,7 @@ use App\Services\WhatsApp\StateService;
 use App\Services\WhatsApp\TemplateService;
 use App\Services\WhatsApp\UserFlowService;
 use Illuminate\Support\Facades\Log;
+use App\Services\WhatsApp\CertificateService;
 
 class ProcessMessageAction
 {
@@ -55,6 +56,11 @@ class ProcessMessageAction
         if ($needTemplate) {
             Log::info("🔔 Enviando plantilla welcome_short a {$userPhone}");
             $sentTemplate = $this->messageService->sendTemplate($userPhone, 'welcome_short');
+            
+            $this->stateService->updateState($userPhone, [
+                'welcome_sent' => true,
+                'welcome_sent_at' => time()
+            ]);
         }
 
         $this->routeMessage($userPhone, $messageText, $sentTemplate);
@@ -66,6 +72,15 @@ class ProcessMessageAction
         $normalized = $this->userFlowService->normalizeMessage($messageText);
         
         $userState = $this->stateService->getState($userPhone);
+
+        // ✅ NUEVO: Verificar si ya se envió plantilla en esta sesión
+        $welcomeAlreadySent = isset($userState['welcome_sent']) && $userState['welcome_sent'] === true;
+        
+        // Si ya se envió plantilla, forzar suppressWelcome a true
+        if ($welcomeAlreadySent) {
+            Log::info("ℹ️ Plantilla ya enviada en esta sesión, suprimiendo bienvenida adicional");
+            $suppressWelcome = true;
+        }
 
         // Si está en flujos de autenticación
         if ($this->stateService->isInAuthFlow($userPhone)) {
@@ -86,17 +101,29 @@ class ProcessMessageAction
         
         if ($command === 'menu') {
             Log::info("🤖 Comando MENU/HOLA recibido - suppressWelcome={$suppressWelcome}");
+            
             if (!$suppressWelcome) {
                 $this->messageService->sendText($userPhone, $this->templateService->getMenu());
             } else {
                 $this->messageService->sendText($userPhone, $this->templateService->getMenu(true));
             }
+            
             $this->stateService->updateState($userPhone, ['step' => 'main_menu']);
             return;
         }
 
         if ($command === 'generar_certificado') {
-            Log::info("🤖 Usuario solicitó iniciar flujo de Generar Certificado");
+            Log::info("🤖 Usuario solicitó iniciar flujo de Generar Certificado - suppressWelcome={$suppressWelcome}");
+            
+            // ✅ NUEVO: Solo mostrar mini-welcome si NO se ha enviado plantilla
+            if (!$suppressWelcome) {
+                Log::info("📝 Mostrando mini-bienvenida para nuevo usuario");
+                $this->messageService->sendText($userPhone, 
+                    "👋 ¡Hola! Bienvenido al sistema de certificados FIC del SENA.\n\n" .
+                    "Vamos a comenzar con la validación de tu usuario para generar el certificado."
+                );
+            }
+            
             $this->handleAuthFlowAction->startAuthentication($userPhone);
             return;
         }
@@ -127,10 +154,10 @@ class ProcessMessageAction
                 $this->messageService,
                 $this->stateService,
                 $this->templateService,
-                new CertificateService() // O inyectarlo
+                new CertificateService()
             );
             
-            $consultaAction->execute($from, $messageText, $userState);
+            $consultaAction->execute($userPhone, $messageText, $userState);
             return;
         }
 
