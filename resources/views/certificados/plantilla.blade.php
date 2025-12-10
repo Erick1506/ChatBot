@@ -439,11 +439,8 @@
         
         <!-- FOOTER -->
         <div class="footer">
-            <img src="{{ asset('images/footer.jpg') }}" alt="@SENAComunica www.sena.edu.co" class="footer-image">
+                @include('components.footer')
         </div>
-        
-        <!-- NÚMERO DE PÁGINA -->
-        <div class="page-number">Pág. 1</div>
     </div>
 
 </body>
