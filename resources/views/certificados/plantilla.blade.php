@@ -13,7 +13,7 @@
         
         body { 
             font-family: 'Arial', sans-serif;
-            font-size: 10px; /* Reducido de 11px */
+            font-size: 9px;
             color: #000000;
             background-color: #ffffff;
             width: 100%;
@@ -24,77 +24,73 @@
         /* CONTENEDOR PRINCIPAL (HOJA A4) */
         .page-container {
             width: 21cm;
-            min-height: 29.7cm;
-            height: 29.7cm; /* Altura fija */
+            height: 29.7cm;
             background: white;
             margin: 0 auto;
-            padding: 1.5cm 2cm 1.5cm 2cm; /* Reducido padding superior e inferior */
+            padding: 0.8cm 1.5cm;
             position: relative;
             overflow: hidden;
-            /*width: 80%;*/
         }
         
         /* LOGO - MÁS PEQUEÑO */
         .logo-container {
             text-align: center;
-            margin: 0 auto 5px auto; /* Reducido margen */
+            margin: 0 auto 3px auto;
             width: 100%;
         }
         
         .logo {
-            height: 70px; /* Reducido de 80px */
+            height: 55px;
             width: auto;
         }
         
         /* ENCABEZADO - MÁS COMPACTO */
         .header {
             text-align: center;
-            margin-bottom: 10px; /* Reducido */
+            margin-bottom: 6px;
         }
         
         .institucion {
-            font-size: 14px; /* Reducido de 16px */
-            line-height: 1.1;
+            font-size: 13px;
+            line-height: 1;
             margin-bottom: 2px;
-            padding: 10px;
+            padding: 3px;
         }
 
         .SENA {
-            font-size: 14px; /* Reducido de 16px */
-            line-height: 1.1;
+            font-size: 13px;
+            line-height: 1;
             margin-bottom: 2px;
-            padding: 18px;
-
+            padding: 3px;
         }
         
         .ministerio {
-            font-size: 10px; /* Reducido de 11px */
+            font-size: 9px;
             font-weight: bold;
-            line-height: 1.1;
+            line-height: 1;
         }
         
         /* TÍTULO CERTIFICA */
         .certifica-title {
             text-align: center;
-            font-size: 14px; /* Reducido de 16px */
+            font-size: 13px;
             font-weight: bold;
-            margin: 10px 0; /* Reducido */
-            padding: 12px;
-
+            margin: 6px 0;
+            padding: 3px;
         }
         
         /* PÁRRAFO DE INTRODUCCIÓN */
         .intro-paragraph {
             text-align: left;
-            margin: 8px 0 10px 0; /* Reducido */
-            font-size: 10px; /* Reducido */
-            line-height: 1.1;
-            padding: 0 5px;
+            margin: 5px 0;
+            font-size: 9px;
+            line-height: 1.2;
+            padding: 0 3px;
         }
         
         /* TABLA - SUPER COMPACTA */
         .table-container {
-            margin: 10px 0; /* Reducido */
+            margin: 6px 0;
             width: 100%;
         }
         
@@ -102,14 +98,13 @@
             width: 100%;
             border-collapse: collapse;
             border: 1px solid black;
-            font-size: 8px; /* Reducido significativamente */
+            font-size: 7.5px;
             table-layout: fixed;
-            padding: 10px;
         }
         
         th, td {
             border: 1px solid black;
-            padding: 2px 1px; /* Reducido padding */
+            padding: 1.5px 1px;
             text-align: center;
             vertical-align: middle;
             word-wrap: break-word;
@@ -119,7 +114,7 @@
         th {
             font-weight: bold;
             background-color: #f5f5f5;
-            font-size: 8px; /* Reducido */
+            font-size: 7.5px;
         }
         
         /* AJUSTES ESPECÍFICOS DE ANCHO PARA CADA COLUMNA */
@@ -133,75 +128,73 @@
         
         /* CONTENIDO INFERIOR - EXTRA COMPACTO */
         .content-section {
-            margin: 5px 0; /* Reducido significativamente */
-            padding: 0 5px;
-            line-height: 1.1; /* Reducido */
+            margin: 4px 0;
+            padding: 0 3px;
+            line-height: 1.15;
             text-align: center;
-            padding: 10px;
         }
         
         .fecha-expedicion {
-            margin-top: 10px; /* Reducido */
-            font-size: 9px; /* Reducido */
+            margin-top: 6px;
+            font-size: 8.5px;
         }
         
         .advertencia-texto {
             font-weight: bold;
             text-align: center;
-            margin: 8px 0; /* Reducido */
-            font-size: 9px; /* Reducido */
-            line-height: 1.1;
+            margin: 5px 0;
+            font-size: 8px;
+            line-height: 1.15;
         }
         
         .no-validez {
             font-weight: bold;
             text-align: center;
-            margin: 6px 0; /* Reducido */
-            font-size: 9px; /* Reducido */
+            margin: 4px 0;
+            font-size: 8.5px;
         }
         
         .info-section {
             text-align: center;
-            margin: 6px 0; /* Reducido */
-            font-size: 9px; /* Reducido */
-            line-height: 1.1;
+            margin: 4px 0;
+            font-size: 8px;
+            line-height: 1.2;
         }
         
         .expedido-por,
         .generado-por {
             text-align: center;
-            margin: 4px 0; /* Reducido */
-            font-size: 9px; /* Reducido */
+            margin: 3px 0;
+            font-size: 8px;
         }
         
         .verificacion-box {
             text-align: center;
-            margin: 8px 0; /* Reducido */
-            font-size: 9px; /* Reducido */
-            line-height: 1.1;
+            margin: 5px 0;
+            font-size: 8px;
+            line-height: 1.2;
         }
         
         /* FOOTER - MÁS PEQUEÑO Y MEJOR POSICIONADO */
         .footer {
             position: absolute;
-            bottom: 0.8cm; /* Ajustado para que quepa */
+            bottom: 0.5cm;
             left: 0;
             right: 0;
             text-align: center;
-            
         }
         
         .footer-image {
-            width: 150px; /* Reducido de 180px */
+            width: 130px;
             height: auto;
         }
         
         /* NÚMERO DE PÁGINA */
         .page-number {
             position: absolute;
-            bottom: 0.3cm; /* Ajustado */
-            right: 2cm;
-            font-size: 8px;
+            bottom: 0.3cm;
+            right: 1.5cm;
+            font-size: 7px;
             color: #666;
         }
         
@@ -218,10 +211,11 @@
             text-align: center;
         }
         
-        
-        /* CLASE PARA REMOVER ELEMENTOS SI ES NECESARIO */
-        .remove-if-needed {
-            /* Se puede usar display: none en elementos menos críticos si aún no cabe */
+        /* AJUSTES PARA PDF */
+        @media print {
+            .page-container {
+                padding: 0.8cm 1.5cm;
+            }
         }
     </style>
 </head>
@@ -245,7 +239,7 @@
         <div class="certifica-title">CERTIFICA:</div>
         
         <!-- CONTENIDO PRINCIPAL -->
-       <div class="intro-paragraph">
+        <div class="intro-paragraph">
             @if($certificados->count() > 0)
                 Que el constructor con razón social <span class="negrita">{{ $certificados->first()->nombre_empresa }}</span> 
                 identificado con el NIT <span class="negrita">{{ $certificados->first()->nitempresa }}</span>, 
@@ -266,7 +260,7 @@
                     <tr>
                         <th class="col-licencia">
                             <div>N°</div>
-                            <div style="font-size: 7px;">Licencia/Contrato</div>
+                            <div style="font-size: 6.5px;">Licencia/Contrato</div>
                         </th>
                         <th class="col-obra">Nombre Obra</th>
                         <th class="col-ciudad">Ciudad Ejecución</th>
@@ -279,13 +273,13 @@
                 <tbody>
                     @forelse($certificados as $certificado)
                     <tr>
-                        <td style="font-size: 8px;">{{ $certificado->nro_licencia_contrato ?? 'N/A' }}</td>
-                        <td style="font-size: 8px;">{{ $certificado->nombre_obra ?? '' }}</td>
-                        <td style="font-size: 8px;">{{ $certificado->ciudad_obra ?? '' }}</td>
-                        <td style="font-size: 8px;">${{ number_format($certificado->valor_pagado ?? 0, 0, ',', '.') }}</td>
-                        <td style="font-size: 8px;">{{ $certificado->periodo_pagado ?? '' }}</td>
-                        <td style="font-size: 8px;">{{ $certificado->fecha_formateada ?? '' }}</td>
-                        <td style="font-size: 8px;">{{ $certificado->ticketid ?? '' }}</td>
+                        <td style="font-size: 7.5px;">{{ $certificado->nro_licencia_contrato ?? 'N/A' }}</td>
+                        <td style="font-size: 7.5px;">{{ $certificado->nombre_obra ?? '' }}</td>
+                        <td style="font-size: 7.5px;">{{ $certificado->ciudad_obra ?? '' }}</td>
+                        <td style="font-size: 7.5px;">${{ number_format($certificado->valor_pagado ?? 0, 0, ',', '.') }}</td>
+                        <td style="font-size: 7.5px;">{{ $certificado->periodo_pagado ?? '' }}</td>
+                        <td style="font-size: 7.5px;">{{ $certificado->fecha_formateada ?? '' }}</td>
+                        <td style="font-size: 7.5px;">{{ $certificado->ticketid ?? '' }}</td>
                     </tr>
                     @empty
                     <tr>
@@ -298,8 +292,8 @@
                     <!-- FILA DEL TOTAL -->
                     <tr style="font-weight: bold;">
                         <td colspan="2"></td>
-                        <td style="text-align: center; font-size: 8px;">Total</td>
-                        <td style="text-align: center; font-size: 8px;">${{ number_format($total ?? 0, 0, ',', '.') }}</td>
+                        <td style="text-align: center; font-size: 7.5px;">Total</td>
+                        <td style="text-align: center; font-size: 7.5px;">${{ number_format($total ?? 0, 0, ',', '.') }}</td>
                         <td colspan="3"></td>
                     </tr>
                 </tbody>
@@ -322,8 +316,8 @@
         <!-- SECCIÓN DE NO VALIDEZ -->
         <div class="content-section no-validez">NO TIENE VALIDEZ PARA FINES TRIBUTARIOS</div>
         
-        <!-- INFORMACIÓN ADICIONAL (OPCIONAL - SE PUEDE REMOVER SI NO CABE) -->
-        <div class="content-section info-section remove-if-needed">
+        <!-- INFORMACIÓN ADICIONAL -->
+        <div class="content-section info-section">
             <p>Este documento no tiene validez en procesos de selección contractual con entidades del estado.</p>
             <p>La expedición de esta certificación no impide que el SENA verifique la base de liquidación de aportes y que constate el cumplimiento en Contrato de Aprendizaje.</p>
         </div>
@@ -335,8 +329,8 @@
             @endif
         </div>
         
-        <!-- GENERADO POR (OPCIONAL - SE PUEDE REMOVER SI NO CABE) -->
-        <div class="content-section generado-por remove-if-needed">
+        <!-- GENERADO POR -->
+        <div class="content-section generado-por">
             Generado por: <span class="negrita">{{ $nombre_usuario ?? 'Sistema SENA' }}</span>
         </div>
         
@@ -349,7 +343,7 @@
                 </a> 
                 enlace CONSULTAR CODIGO CERTIFICADO y digite:
             </p>
-            <p style="margin-top: 10px; font-size: 8px;">
+            <p style="margin-top: 3px; font-size: 7.5px;">
                 @if($certificados->count() > 0)
                     el código de verificación: <span class="negrita">{{ $certificados->first()->codigo_verificacion ?? 'CV001' }}</span> 
                     y el Número de Certificado: <span class="negrita">{{ $certificados->first()->numero_certificado ?? 'NC001' }}</span>
@@ -384,40 +378,16 @@ function obtenerMesEspanol($mes) {
 function numeroEnLetras($num)
 {
     $numeros = [
-        1 => 'uno',
-        2 => 'dos',
-        3 => 'tres',
-        4 => 'cuatro',
-        5 => 'cinco',
-        6 => 'seis',
-        7 => 'siete',
-        8 => 'ocho',
-        9 => 'nueve',
-        10 => 'diez',
-        11 => 'once',
-        12 => 'doce',
-        13 => 'trece',
-        14 => 'catorce',
-        15 => 'quince',
-        16 => 'dieciséis',
-        17 => 'diecisiete',
-        18 => 'dieciocho',
-        19 => 'diecinueve',
-        20 => 'veinte',
-        21 => 'veintiuno',
-        22 => 'veintidós',
-        23 => 'veintitrés',
-        24 => 'veinticuatro',
-        25 => 'veinticinco',
-        26 => 'veintiséis',
-        27 => 'veintisiete',
-        28 => 'veintiocho',
-        29 => 'veintinueve',
-        30 => 'treinta',
-        31 => 'treinta y uno',
+        1 => 'uno', 2 => 'dos', 3 => 'tres', 4 => 'cuatro',
+        5 => 'cinco', 6 => 'seis', 7 => 'siete', 8 => 'ocho',
+        9 => 'nueve', 10 => 'diez', 11 => 'once', 12 => 'doce',
+        13 => 'trece', 14 => 'catorce', 15 => 'quince', 16 => 'dieciséis',
+        17 => 'diecisiete', 18 => 'dieciocho', 19 => 'diecinueve', 20 => 'veinte',
+        21 => 'veintiuno', 22 => 'veintidós', 23 => 'veintitrés', 24 => 'veinticuatro',
+        25 => 'veinticinco', 26 => 'veintiséis', 27 => 'veintisiete', 28 => 'veintiocho',
+        29 => 'veintinueve', 30 => 'treinta', 31 => 'treinta y uno',
     ];
 
     return $numeros[$num] ?? $num;
 }
-
 ?>
