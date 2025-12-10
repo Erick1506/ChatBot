@@ -148,7 +148,6 @@ class HandleCertificateFlowAction
             $this->messageService->sendDocument($userPhone, $pdfPath, $fileName);
 
             $this->messageService->sendText($userPhone, $this->templateService->getCertificateGenerated());
-            $this->messageService->sendText($userPhone, "¿Necesitas algo más? Escribe *MENU* para ver las opciones.");
 
             // Actualizar estado
             $this->stateService->updateState($userPhone, [
