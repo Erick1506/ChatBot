@@ -23,7 +23,7 @@
         
         /* CONTENEDOR PRINCIPAL (HOJA A4) */
         .page-container {
-            width: 18cm;
+            width: 21cm;
             min-height: 29.7cm;
             height: 29.7cm; /* Altura fija */
             background: white;
@@ -188,6 +188,7 @@
             left: 0;
             right: 0;
             text-align: center;
+            
         }
         
         .footer-image {
@@ -217,84 +218,6 @@
             text-align: center;
         }
         
-        /* ESTILOS ESPECÍFICOS PARA IMPRESIÓN/PDF */
-        @media print {
-            body {
-                background: white !important;
-                padding: 0 !important;
-                margin: 0 !important;
-                width: 21cm !important;
-                height: 29.7cm !important;
-                font-size: 9px !important;
-            }
-            
-            .page-container {
-                width: 100% !important;
-                height: 100% !important;
-                min-height: 100% !important;
-                max-height: 100% !important;
-                margin: 0 !important;
-                padding: 1.5cm 2cm 1.5cm 2cm !important;
-                box-shadow: none !important;
-                page-break-after: avoid !important;
-                page-break-inside: avoid !important;
-                overflow: hidden !important;
-            }
-            
-            /* Reducir aún más para impresión */
-            .logo {
-                height: 60px !important;
-            }
-            
-            .institucion {
-                font-size: 13px !important;
-            }
-            
-            .certifica-title {
-                font-size: 13px !important;
-            }
-            
-            table {
-                font-size: 7px !important;
-            }
-            
-            th, td {
-                padding: 1px !important;
-            }
-            
-            /* Evitar que los enlaces se muestren en azul */
-            a {
-                color: black !important;
-                text-decoration: none !important;
-            }
-            
-            /* Asegurar que el footer esté en la parte inferior */
-            .footer {
-                position: fixed !important;
-                bottom: 0.8cm !important;
-            }
-        }
-        
-        /* ESTILOS PARA VISUALIZACIÓN EN NAVEGADOR */
-        @media screen {
-            body {
-                background-color: #f0f0f0;
-                padding: 20px 0;
-                display: flex;
-                justify-content: center;
-                align-items: flex-start;
-                min-height: 100vh;
-            }
-            
-            .page-container {
-                box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            }
-            
-            .verificacion-box a {
-                color: blue;
-                text-decoration: underline;
-            }
-        }
         
         /* CLASE PARA REMOVER ELEMENTOS SI ES NECESARIO */
         .remove-if-needed {
@@ -444,7 +367,6 @@
             class="footer-image">
         </div>
         
-        <!-- NÚMERO DE PÁGINA -->
     </div>
 
 </body>
