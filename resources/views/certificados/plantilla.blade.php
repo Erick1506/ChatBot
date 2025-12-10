@@ -183,19 +183,25 @@
         
         /* FOOTER - MÁS PEQUEÑO Y MEJOR POSICIONADO */
         .footer {
-            position: fixed;
-            bottom: 0.8cm;
+            position: absolute;
+            bottom: 0.8cm; /* Ajustado para que quepa */
             left: 0;
             right: 0;
             text-align: center;
-            z-index: 1000; /* Asegura que esté por encima */
-            background: white; /* Fondo para que no se transparente */
-            padding: 5px 0;
         }
         
         .footer-image {
             width: 150px; /* Reducido de 180px */
             height: auto;
+        }
+        
+        /* NÚMERO DE PÁGINA */
+        .page-number {
+            position: absolute;
+            bottom: 0.3cm; /* Ajustado */
+            right: 2cm;
+            font-size: 8px;
+            color: #666;
         }
         
         /* UTILIDADES */
@@ -433,8 +439,12 @@
         
         <!-- FOOTER -->
         <div class="footer">
-                @include('components.footer')
+            <img src="https://chatbot-sodj.onrender.com/images/footer.jpg" 
+            alt="@SENAComunica www.sena.edu.co" 
+            class="footer-image">
         </div>
+        
+        <!-- NÚMERO DE PÁGINA -->
     </div>
 
 </body>
