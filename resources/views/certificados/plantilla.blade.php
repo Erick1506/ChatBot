@@ -183,25 +183,19 @@
         
         /* FOOTER - MÁS PEQUEÑO Y MEJOR POSICIONADO */
         .footer {
-            position: absolute;
-            bottom: 0.8cm; /* Ajustado para que quepa */
+            position: fixed;
+            bottom: 0.8cm;
             left: 0;
             right: 0;
             text-align: center;
+            z-index: 1000; /* Asegura que esté por encima */
+            background: white; /* Fondo para que no se transparente */
+            padding: 5px 0;
         }
         
         .footer-image {
             width: 150px; /* Reducido de 180px */
             height: auto;
-        }
-        
-        /* NÚMERO DE PÁGINA */
-        .page-number {
-            position: absolute;
-            bottom: 0.3cm; /* Ajustado */
-            right: 2cm;
-            font-size: 8px;
-            color: #666;
         }
         
         /* UTILIDADES */
