@@ -27,7 +27,7 @@ class CertificateService
         Log::info("🔍 Buscando certificados por vigencia - NIT: {$nit}, Año: {$year}");
         $pattern = $year . '-%';
         return CertificadoFIC::where('nitempresa', $nit) 
-            ->where('periodo_pagado', 'like', $pattern) 
+            ->where('fecha_pago', 'like', $pattern) 
             ->get();
     }
 
