@@ -30,7 +30,7 @@ class TemplateService
     {
         return "📞 *SOPORTE TÉCNICO*\n\n" .
                "Para asistencia técnica contacta:\n\n" .
-               "📧 Email: soporte@sena.edu.co\n" .
+               "📧 Email: certiaportes@sena.edu.co\n" .
                "🌐 Web: www.sena.edu.co\n\n" .
                "Escribe *MENU* para volver al inicio.";
     }
